@@ -47,12 +47,12 @@ class VoteScreen extends StatelessWidget {
                   children: const [
                     VoteOptionCard(
                       title: 'Option B',
-                      imagePath: 'assets/optionB.png',
+                      imagePath: 'assets/placeholder_image.png',
                       votes: 4,
                     ),
                     VoteOptionCard(
                       title: 'Option A',
-                      imagePath: 'assets/optionA.png',
+                      imagePath: 'assets/placeholder_image.png',
                       votes: 2,
                     ),
                   ],
