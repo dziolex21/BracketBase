@@ -5,8 +5,11 @@ class TournamentScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF120033), // ciemne tło
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -17,7 +20,7 @@ class TournamentScreen extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.purpleAccent),
+                  icon: Icon(Icons.arrow_back, color: colors.primary),
                   onPressed: () {},
                 ),
               ),
@@ -26,10 +29,10 @@ class TournamentScreen extends StatelessWidget {
               // ID turnieju
               Column(
                 children: [
-                  const Text(
+                  Text(
                     "Tournament ID:",
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: colors.onBackground.withOpacity(0.7),
                       fontSize: 16,
                     ),
                   ),
@@ -40,15 +43,15 @@ class TournamentScreen extends StatelessWidget {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.purpleAccent,
+                      color: colors.primary,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
+                    child: Text(
                       "123456",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: colors.onPrimary,
                       ),
                     ),
                   ),
@@ -57,7 +60,7 @@ class TournamentScreen extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              // Lista użytkowników (4 wiersze po 2)
+              // Lista użytkowników
               Expanded(
                 child: GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
@@ -71,14 +74,14 @@ class TournamentScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     return Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2E065E),
+                        color: colors.surface,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(
                         child: Text(
                           'User ${index + 1}',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: colors.onSurface,
                             fontSize: 16,
                           ),
                         ),
@@ -94,18 +97,18 @@ class TournamentScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () {},
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purpleAccent,
+                    backgroundColor: colors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     "Start tournament",
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: colors.onPrimary,
                     ),
                   ),
                 ),
