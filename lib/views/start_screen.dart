@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 
-void main() {
-  runApp(const TournamentApp());
-}
 
-class TournamentApp extends StatelessWidget {
-  const TournamentApp({super.key});
+
+
+class StartScreen extends StatelessWidget {
+  const StartScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tournament App',
+      title: 'Start Screen',
       debugShowCheckedModeBanner: false,
       home: const HomeScreen(),
     );
