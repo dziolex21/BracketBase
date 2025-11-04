@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tournament_app/configs/color_data.dart';
 
 void main() {
   runApp(const VoteApp());
@@ -22,7 +23,7 @@ class VoteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF3D0A6D),
+      backgroundColor: AppColors.purple5,
       body: SafeArea(
         child: Column(
           children: [
@@ -95,7 +96,7 @@ class VoteOptionCard extends StatelessWidget {
     return Expanded(
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF652C9C),
+          color: AppColors.purple3,
           borderRadius: BorderRadius.circular(16),
         ),
         margin: const EdgeInsets.all(8),
@@ -103,7 +104,7 @@ class VoteOptionCard extends StatelessWidget {
           children: [
             Container(
               decoration: const BoxDecoration(
-                color: Color(0xFF9A4DFF),
+                color: AppColors.purple4,
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
@@ -130,7 +131,7 @@ class VoteOptionCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: const BoxDecoration(
-                color: Color(0xFF9A4DFF),
+                color: AppColors.purple4,
                 borderRadius: BorderRadius.only(
                   bottomLeft: Radius.circular(16),
                   bottomRight: Radius.circular(16),
