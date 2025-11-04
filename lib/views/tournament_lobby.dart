@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tournament_app/configs/color_data.dart';
 
 class TournamentScreen extends StatelessWidget {
   const TournamentScreen({super.key});
@@ -6,7 +7,7 @@ class TournamentScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF120033), // ciemne tło
+      backgroundColor: AppColors.purple5, // najciemniejsze tło
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -17,7 +18,7 @@ class TournamentScreen extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.purpleAccent),
+                  icon: const Icon(Icons.arrow_back, color: AppColors.purple1),
                   onPressed: () {},
                 ),
               ),
@@ -29,7 +30,7 @@ class TournamentScreen extends StatelessWidget {
                   const Text(
                     "Tournament ID:",
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: AppColors.purple1,
                       fontSize: 16,
                     ),
                   ),
@@ -40,7 +41,7 @@ class TournamentScreen extends StatelessWidget {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.purpleAccent,
+                      color: AppColors.purple2,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
@@ -57,7 +58,7 @@ class TournamentScreen extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              // Lista użytkowników (4 wiersze po 2)
+              // Lista użytkowników
               Expanded(
                 child: GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
@@ -71,7 +72,7 @@ class TournamentScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     return Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2E065E),
+                        color: AppColors.purple4,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(
@@ -94,7 +95,7 @@ class TournamentScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () {},
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.purpleAccent,
+                    backgroundColor: AppColors.purple2,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -105,7 +106,7 @@ class TournamentScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: Colors.white,
                     ),
                   ),
                 ),

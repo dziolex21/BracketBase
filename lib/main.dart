@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/start_screen.dart';
 import 'package:tournament_app/views/tournament_lobby.dart';
 import 'package:tournament_app/views/voting_screen.dart';
@@ -14,11 +15,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Tournament App',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const VoteScreen(),
+      home: const TournamentScreen()
     );
   }
 }
