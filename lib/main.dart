@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/views/start_screen.dart';
+import 'package:tournament_app/views/tournament_lobby.dart';
 
 void main() {
   runApp(const MyApp());
