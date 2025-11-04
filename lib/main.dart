@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-<<<<<<< Updated upstream
 import 'package:tournament_app/views/start_screen.dart';
 import 'package:tournament_app/views/tournament_lobby.dart';
-=======
 import 'package:tournament_app/views/voting_screen.dart';
->>>>>>> Stashed changes
 
 void main() {
   runApp(const MyApp());
