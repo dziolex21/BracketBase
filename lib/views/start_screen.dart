@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
-
-
-
+import 'package:tournament_app/views/tournament_creator.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
@@ -70,14 +68,21 @@ class HomeScreen extends StatelessWidget {
               context,
               'Create tournament',
                 AppColors.purple4,
-                  () { /* TODO */ },
+                  () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TournamentCreator(),
+                      ),
+                    );
+                  },
             ),
             const SizedBox(height: 30),
             _buildMenuButton(
               context,
               'Join tournament',
                 AppColors.purple4,
-                  () { /* TODO */ },
+                  () { /* TODO: popup aby do wpisania kodu */ },
             ),
           ],
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
 import 'package:tournament_app/views/tournament_settings.dart';
+import 'package:tournament_app/views/tournament_lobby.dart';
 
 class TournamentCreator extends StatelessWidget {
   const TournamentCreator({super.key});
@@ -65,9 +66,14 @@ class TournamentCreator extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const TournamentLobby()),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.purple1,
+                    backgroundColor: AppColors.purple2,
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.0),
