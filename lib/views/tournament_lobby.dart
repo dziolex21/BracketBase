@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
+import 'package:tournament_app/views/tournament_creator.dart';
 
 class TournamentLobby extends StatelessWidget {
   const TournamentLobby({super.key});
@@ -19,7 +20,12 @@ class TournamentLobby extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: IconButton(
                   icon: const Icon(Icons.arrow_back, color: AppColors.purple1),
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const TournamentCreator()),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 10),
@@ -93,7 +99,13 @@ class TournamentLobby extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      // TODO: change TournamentLobby() to bracket_view class when it will be made
+                      MaterialPageRoute(builder: (context) => const TournamentLobby()),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.purple2,
                     padding: const EdgeInsets.symmetric(vertical: 16),
