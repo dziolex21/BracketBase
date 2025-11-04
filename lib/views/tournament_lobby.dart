@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 
-class TournamentScreen extends StatelessWidget {
-  const TournamentScreen({super.key});
+class TournamentLobby extends StatelessWidget {
+  const TournamentLobby({super.key});
 
   @override
   Widget build(BuildContext context) {
