@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:tournament_app/configs/color_data.dart';
 
 class TournamentScreen extends StatelessWidget {
   const TournamentScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colors = theme.colorScheme;
-
     return Scaffold(
-      backgroundColor: colors.background,
+      backgroundColor: AppColors.purple5, // najciemniejsze tło
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -20,7 +18,7 @@ class TournamentScreen extends StatelessWidget {
               Align(
                 alignment: Alignment.centerLeft,
                 child: IconButton(
-                  icon: Icon(Icons.arrow_back, color: colors.primary),
+                  icon: const Icon(Icons.arrow_back, color: AppColors.purple1),
                   onPressed: () {},
                 ),
               ),
@@ -29,10 +27,10 @@ class TournamentScreen extends StatelessWidget {
               // ID turnieju
               Column(
                 children: [
-                  Text(
+                  const Text(
                     "Tournament ID:",
                     style: TextStyle(
-                      color: colors.onBackground.withOpacity(0.7),
+                      color: AppColors.purple1,
                       fontSize: 16,
                     ),
                   ),
@@ -43,15 +41,15 @@ class TournamentScreen extends StatelessWidget {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: colors.primary,
+                      color: AppColors.purple2,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
+                    child: const Text(
                       "123456",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: colors.onPrimary,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -74,14 +72,14 @@ class TournamentScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     return Container(
                       decoration: BoxDecoration(
-                        color: colors.surface,
+                        color: AppColors.purple4,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(
                         child: Text(
                           'User ${index + 1}',
-                          style: TextStyle(
-                            color: colors.onSurface,
+                          style: const TextStyle(
+                            color: Colors.white,
                             fontSize: 16,
                           ),
                         ),
@@ -97,18 +95,18 @@ class TournamentScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () {},
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: colors.primary,
+                    backgroundColor: AppColors.purple2,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text(
+                  child: const Text(
                     "Start tournament",
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: colors.onPrimary,
+                      color: Colors.white,
                     ),
                   ),
                 ),

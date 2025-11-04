@@ -15,23 +15,6 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Tournament App',
-        theme: ThemeData(
-          colorScheme: ColorScheme(
-            brightness: Brightness.dark,
-            primary: AppColors.purple1,
-            onPrimary: Colors.black,
-            secondary: AppColors.purple2,
-            onSecondary: AppColors.purple3,
-            error: Colors.red,
-            onError: Colors.white,
-            background: AppColors.purple5,
-            onBackground: AppColors.purple5,
-            surface: AppColors.purple4,
-            onSurface: AppColors.purple5,
-          ),
-          scaffoldBackgroundColor: AppColors.purple5,
-          useMaterial3: true,
-        ),
       home: const TournamentScreen()
     );
   }
