@@ -81,6 +81,8 @@ class _TournamentSettingsState extends State<TournamentSettings> {
                   _buildTiebreakerOption(0, 'Random pick'),
                   const SizedBox(height: 12.0),
                   _buildTiebreakerOption(1, 'Tournament host decides'),
+                  const SizedBox(height: 12.0),
+                  _buildTiebreakerOption(3, 'first come first served'),
                 ],
               ),
             ),

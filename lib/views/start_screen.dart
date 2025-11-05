@@ -51,7 +51,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ),
         // Ustawiamy preferowaną wysokość AppBar, aby zmieścić nasz kontener
-        toolbarHeight: 140,
+        toolbarHeight: 220,
         // Dodajemy cień dla lepszego oddzielenia od reszty ekranu
         elevation: 8.0,
       ),
