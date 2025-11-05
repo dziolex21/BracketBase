@@ -1,6 +1,9 @@
 <component name="libraryTable">
   <library name="Flutter Plugins" type="FlutterPluginsLibraryType">
-    <CLASSES />
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/../.pub-cache/hosted/pub.dev/firebase_core_web-3.3.0" />
+      <root url="file://$PROJECT_DIR$/../.pub-cache/hosted/pub.dev/firebase_core-4.2.1" />
+    </CLASSES>
     <JAVADOC />
     <SOURCES />
   </library>
