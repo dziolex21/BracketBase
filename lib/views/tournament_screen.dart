@@ -21,6 +21,9 @@ class _TournamentScreenState extends State<TournamentScreen> {
     Contestant(name: 'Rei', picture: null),
     Contestant(name: 'Asuka', picture: null),
     Contestant(name: 'Shinji', picture: null),
+    Contestant(name: 'Ritsuko', picture: null),
+    Contestant(name: 'eva01', picture: null),
+    Contestant(name: 'eva02', picture: null),
   ];
 
   Contestant? semiFinalWinner1;
@@ -106,11 +109,16 @@ class _TournamentScreenState extends State<TournamentScreen> {
             contestants[1],
             contestants[2],
             contestants[3],
+            contestants[4],
+            contestants[5],
+            contestants[6],
           ]),
           const SizedBox(width: 40),
           _buildRound([
-            Contestant(name: 'Rei', picture: null),
-            Contestant(name: 'Asuka', picture: null),
+            contestants[1],
+            contestants[4],
+            contestants[2],
+            contestants[5],
           ]),
           const SizedBox(width: 40),
           _buildFinal(),
