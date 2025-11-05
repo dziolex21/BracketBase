@@ -81,7 +81,9 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () {},
+                        onPressed: () {
+                          // TODO: Implement image change functionality
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.purple3,
                           padding: const EdgeInsets.symmetric(vertical: 12.0),
@@ -93,6 +95,27 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                         label: const Text(
                           'Change image',
                           style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16.0),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // TODO: Implement save functionality
+                          Navigator.of(context).pop();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.purple1,
+                          padding: const EdgeInsets.symmetric(vertical: 12.0),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.0),
+                          ),
+                        ),
+                        child: const Text(
+                          'Save',
+                          style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
