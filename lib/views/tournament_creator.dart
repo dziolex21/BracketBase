@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
+import 'package:tournament_app/views/start_screen.dart';
 import 'package:tournament_app/views/tournament_settings.dart';
 import 'package:tournament_app/views/tournament_lobby.dart';
 
@@ -19,6 +20,15 @@ class TournamentCreator extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: AppColors.purple1),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const StartScreen())
+                      );
+                    },
+                  ),
                   const Spacer(),
                   const Text(
                     'Tournament creator',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/tournament_creator.dart';
+import 'package:tournament_app/views/tournament_lobby.dart';
 import 'package:tournament_app/views/voting_screen.dart';
 
 class StartScreen extends StatelessWidget {
@@ -21,6 +22,101 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    void _showJoinTournamentPopup(BuildContext context) {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: AppColors.purple4,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (context) {
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Nagłówek + przycisk zamykania
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Tournament ID:',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
+                // Pole z ID turnieju (na razie statyczne)
+                Container(
+                  width: double.infinity,
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.purple5,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Center(
+                    child: TextField(
+                      textAlign: TextAlign.center,
+                      keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.white),
+                      cursorColor: AppColors.purple1,
+                      decoration: InputDecoration(
+                        hintText: "Enter tournament ID",
+                        hintStyle: const TextStyle(color: Colors.white54),
+                        filled: true,
+                        fillColor: AppColors.purple5,
+                        contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 14)
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Przycisk Join
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const TournamentLobby()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.purple2,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'Join',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+            ),
+          );
+        },
+      );
+    }
 
     return Scaffold(
       // --- POCZĄTEK ZMIAN ---
@@ -83,14 +179,7 @@ class HomeScreen extends StatelessWidget {
               context,
               'Join tournament',
                 AppColors.purple4,
-                  () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const VoteScreen(),
-                      ),
-                    );
-                  },
+                () => _showJoinTournamentPopup(context)
             ),
           ],
         ),
