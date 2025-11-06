@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
+import 'package:tournament_app/configs/settings.dart';
 
 class TournamentSettings extends StatefulWidget {
   const TournamentSettings({super.key});
@@ -9,18 +10,49 @@ class TournamentSettings extends StatefulWidget {
 }
 
 class _TournamentSettingsState extends State<TournamentSettings> {
-  bool _imagesEnabled = true;
-  int _selectedTiebreaker = 0; // 0 for random, 1 for host
+  late AppSettings _settings;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    _settings = await AppSettings.load();
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _saveSettings() async {
+    await _settings.save();
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.purple5,
+        appBar: AppBar(
+          backgroundColor: AppColors.purple5,
+        ),
+        body: const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: AppColors.purple5,
       appBar: AppBar(
         backgroundColor: AppColors.purple5,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.purple1),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () async {
+            await _saveSettings();
+            Navigator.of(context).pop();
+          },
         ),
         title: const Text(
           'Settings',
@@ -48,14 +80,14 @@ class _TournamentSettingsState extends State<TournamentSettings> {
                     style: TextStyle(color: Colors.white, fontSize: 22),
                   ),
                   Switch(
-                    value: _imagesEnabled,
+                    value: _settings.imagesEnabled,
                     onChanged: (value) {
                       setState(() {
-                        _imagesEnabled = value;
+                        _settings.imagesEnabled = value;
                       });
                     },
                     activeTrackColor: Colors.green,
-                    inactiveTrackColor: Colors.grey,
+                    inactiveThumbColor: Colors.grey,
                   ),
                 ],
               ),
@@ -82,7 +114,7 @@ class _TournamentSettingsState extends State<TournamentSettings> {
                   const SizedBox(height: 12.0),
                   _buildTiebreakerOption(1, 'Tournament host decides'),
                   const SizedBox(height: 12.0),
-                  _buildTiebreakerOption(3, 'first come first served'),
+                  _buildTiebreakerOption(2, 'First come first serve'),
                 ],
               ),
             ),
@@ -93,11 +125,11 @@ class _TournamentSettingsState extends State<TournamentSettings> {
   }
 
   Widget _buildTiebreakerOption(int index, String text) {
-    final bool isSelected = _selectedTiebreaker == index;
+    final bool isSelected = _settings.selectedTiebreaker == index;
     return ElevatedButton(
       onPressed: () {
         setState(() {
-          _selectedTiebreaker = index;
+          _settings.selectedTiebreaker = index;
         });
       },
       style: ElevatedButton.styleFrom(
