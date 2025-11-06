@@ -1,12 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
-import 'package:tournament_app/views/start_screen.dart';
 import 'package:tournament_app/views/tournament_settings.dart';
-import 'package:tournament_app/views/tournament_lobby.dart';
 
-class TournamentCreator extends StatelessWidget {
+class TournamentCreator extends StatefulWidget {
   const TournamentCreator({super.key});
+
+  @override
+  State<TournamentCreator> createState() => _TournamentCreatorState();
+}
+
+class _TournamentCreatorState extends State<TournamentCreator> {
+  final List<String> _contestants = [
+    'Contestant_1',
+    'Contestant_2',
+    'Contestant_3',
+  ];
+
+  void _navigateAndEditContestant(BuildContext context, int index) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ContestantEditorScreen(contestantName: _contestants[index]),
+      ),
+    );
+
+    if (result != null && result is String && result.isNotEmpty) {
+      setState(() {
+        _contestants[index] = result;
+      });
+    }
+  }
+
+  void _navigateAndAddContestant(BuildContext context) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ContestantEditorScreen(),
+      ),
+    );
+
+    if (result != null && result is String && result.isNotEmpty) {
+      setState(() {
+        _contestants.add(result);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,15 +59,6 @@ class TournamentCreator extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: AppColors.purple1),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const StartScreen())
-                      );
-                    },
-                  ),
                   const Spacer(),
                   const Text(
                     'Tournament creator',
@@ -55,35 +85,29 @@ class TournamentCreator extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16.0),
                 decoration: BoxDecoration(
-                  color: AppColors.purple1,
+                  color: AppColors.purple4,
                   borderRadius: BorderRadius.circular(16.0),
                   border: Border.all(color: AppColors.purple2),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildContestantTile(context, 'Contestant_1'),
-                    const SizedBox(height: 12.0),
-                    _buildContestantTile(context, 'Contestant_2'),
-                    const SizedBox(height: 12.0),
-                    _buildContestantTile(context, 'Contestant_3'),
-                    const SizedBox(height: 12.0),
-                    _buildAddContestantButton(context),
-                  ],
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: _contestants.length + 1, // +1 for the add button
+                  separatorBuilder: (context, index) => const SizedBox(height: 12.0),
+                  itemBuilder: (context, index) {
+                    if (index == _contestants.length) {
+                      return _buildAddContestantButton(context);
+                    }
+                    return _buildContestantTile(context, index);
+                  },
                 ),
               ),
               const Spacer(),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const TournamentLobby()),
-                    );
-                  },
+                  onPressed: () {},
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.purple2,
+                    backgroundColor: AppColors.purple1,
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.0),
@@ -102,26 +126,20 @@ class TournamentCreator extends StatelessWidget {
     );
   }
 
-  Widget _buildContestantTile(BuildContext context, String name) {
+  Widget _buildContestantTile(BuildContext context, int index) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => ContestantEditorScreen(contestantName: name)),
-        );
-      },
+      onTap: () => _navigateAndEditContestant(context, index),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
         decoration: BoxDecoration(
-          color: AppColors.purple4,
+          color: AppColors.purple3,
           borderRadius: BorderRadius.circular(12.0),
-          border: Border.all(color: Colors.white),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              name,
+              _contestants[index],
               style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
             const Icon(Icons.edit_outlined, color: Colors.white, size: 22),
@@ -133,18 +151,12 @@ class TournamentCreator extends StatelessWidget {
 
   Widget _buildAddContestantButton(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const ContestantEditorScreen()),
-        );
-      },
+      onTap: () => _navigateAndAddContestant(context),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
         decoration: BoxDecoration(
           color: AppColors.purple3,
           borderRadius: BorderRadius.circular(12.0),
-          border: Border.all(color: Colors.white),
         ),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
