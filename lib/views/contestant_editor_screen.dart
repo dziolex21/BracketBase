@@ -103,8 +103,7 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          // TODO: Implement save functionality
-                          Navigator.of(context).pop();
+                          Navigator.of(context).pop(_nameController.text);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.purple1,
