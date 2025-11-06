@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/tournament_creator.dart';
 import 'package:tournament_app/views/tournament_lobby.dart';
-import 'package:tournament_app/views/voting_screen.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
