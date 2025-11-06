@@ -90,4 +90,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'kaliop-tournament.firebasestorage.app',
     measurementId: 'G-PND17FRYM2',
   );
+
 }
