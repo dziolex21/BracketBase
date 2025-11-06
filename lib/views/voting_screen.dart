@@ -27,7 +27,7 @@ class VoteScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 20),
+            const SizedBox(height: 180),
             const Text(
               'Vote',
               style: TextStyle(
@@ -39,26 +39,30 @@ class VoteScreen extends StatelessWidget {
             const SizedBox(height: 20),
 
             // Sekcja z opcjami głosowania
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: const [
-                    VoteOptionCard(
-                      title: 'Option B',
-                      imagePath: 'assets/placeholder_image.png',
-                      votes: 4,
-                    ),
-                    VoteOptionCard(
-                      title: 'Option A',
-                      imagePath: 'assets/placeholder_image.png',
-                      votes: 2,
-                    ),
-                  ],
-                ),
+
+            // Sekcja z opcjami głosowania
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: const [
+                  VoteOptionCard(
+                    title: 'Option A',
+                    imagePath: 'assets/placeholder_image.png',
+                    votes: 4,
+                  ),
+                  VoteOptionCard(
+                    title: 'Option B',
+                    imagePath: 'assets/placeholder_image.png',
+                    votes: 2,
+                  ),
+                ],
               ),
             ),
+
+
+
+
 
             // Napis na dole
             const Padding(
@@ -93,10 +97,13 @@ class VoteOptionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
+    return Expanded( // <-- TEN Expanded jest potrzebny, bo jest dzieckiem Row
       child: Container(
+        height: 300, // <-- DODAJ stałą wysokość lub użyj innego mechanizmu
         decoration: BoxDecoration(
-          color: AppColors.purple3,
+
+
+        color: AppColors.purple3,
           borderRadius: BorderRadius.circular(16),
         ),
         margin: const EdgeInsets.all(8),
@@ -122,9 +129,10 @@ class VoteOptionCard extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: Image.asset(
-                imagePath,
-                fit: BoxFit.cover,
+              child: Center(
+                child: Image.asset(
+                  imagePath,
+                ),
               ),
             ),
             Container(

@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "11917914593",
+    "firebase_url": "https://kaliop-tournament-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "kaliop-tournament",
+    "storage_bucket": "kaliop-tournament.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:11917914593:android:e1569ba3893e81a016a2a0",
+        "android_client_info": {
+          "package_name": "com.example.tournament_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvbtyN6UqRsS0HKh9I-BPl2HcRUXgymKY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
