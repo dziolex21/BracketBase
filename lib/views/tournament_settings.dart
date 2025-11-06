@@ -55,7 +55,7 @@ class _TournamentSettingsState extends State<TournamentSettings> {
                       });
                     },
                     activeTrackColor: Colors.green,
-                    inactiveTrackColor: Colors.red,
+                    inactiveTrackColor: Colors.grey,
                   ),
                 ],
               ),
