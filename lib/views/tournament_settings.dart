@@ -49,8 +49,7 @@ class _TournamentSettingsState extends State<TournamentSettings> {
         backgroundColor: AppColors.purple5,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.purple1),
-          onPressed: () async {
-            await _saveSettings();
+          onPressed: () {
             Navigator.of(context).pop();
           },
         ),
@@ -84,6 +83,7 @@ class _TournamentSettingsState extends State<TournamentSettings> {
                     onChanged: (value) {
                       setState(() {
                         _settings.imagesEnabled = value;
+                        _saveSettings();
                       });
                     },
                     activeTrackColor: Colors.green,
@@ -130,6 +130,7 @@ class _TournamentSettingsState extends State<TournamentSettings> {
       onPressed: () {
         setState(() {
           _settings.selectedTiebreaker = index;
+          _saveSettings();
         });
       },
       style: ElevatedButton.styleFrom(
