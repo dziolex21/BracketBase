@@ -32,129 +32,130 @@ class HomeScreen extends StatelessWidget {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (BuildContext context, StateSetter setState) {
-              String? errorMessage;
-
-              return SingleChildScrollView(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
-                    top: 16,
-                    bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+        builder: (modalContext) {
+          return SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Nagłówek + przycisk zamykania
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Nagłówek + przycisk zamykania
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Tournament ID:',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, color: Colors.white70),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Pole z ID turnieju
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 24, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: AppColors.purple5,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Center(
-                          child: TextField(
-                            controller: idController,
-                            textAlign: TextAlign.center,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(6),
-                            ],
-                            style: const TextStyle(color: Colors.white),
-                            cursorColor: AppColors.purple1,
-                            decoration: const InputDecoration(
-                              hintText: "Enter tournament ID",
-                              hintStyle: TextStyle(color: Colors.white54),
-                              filled: true,
-                              fillColor: AppColors.purple5,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              border: InputBorder.none,
-                            ),
-                          ),
+                      const Text(
+                        'Tournament ID:',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 10),
-
-                      // Error message
-                      if (errorMessage != null)
-                        Text(
-                          errorMessage!,
-                          style: const TextStyle(color: Colors.red, fontSize: 14),
-                        ),
-
-                      const SizedBox(height: 10),
-
-                      // Przycisk Join
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            final enteredId = idController.text;
-                            if (enteredId.length == 6) {
-                              Navigator.pop(context); // Close the modal
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      TournamentLobby(lobbyId: enteredId),
-                                ),
-                              );
-                            } else {
-                              setState(() {
-                                errorMessage = 'Please enter a valid 6-digit ID.';
-                              });
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.purple2,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text(
-                            'Join',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: () => Navigator.pop(modalContext),
                       ),
-                      const SizedBox(height: 10),
                     ],
                   ),
-                ),
-              );
-            },
+                  const SizedBox(height: 10),
+
+                  // Pole z ID turnieju
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.purple5,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: TextField(
+                        controller: idController,
+                        textAlign: TextAlign.center,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
+                        ],
+                        style: const TextStyle(color: Colors.white),
+                        cursorColor: AppColors.purple1,
+                        decoration: const InputDecoration(
+                          hintText: "Enter tournament ID",
+                          hintStyle: TextStyle(color: Colors.white54),
+                          filled: true,
+                          fillColor: AppColors.purple5,
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                          ),
+                          border: InputBorder.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Przycisk Join
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        final enteredId = idController.text;
+                        if (enteredId.length == 6) {
+                          Navigator.pop(modalContext); // Close the modal
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  TournamentLobby(lobbyId: enteredId),
+                            ),
+                          );
+                        } else {
+                           Navigator.pop(modalContext); // Close the modal first
+                           ScaffoldMessenger.of(context).showMaterialBanner(
+                            MaterialBanner(
+                              padding: const EdgeInsets.all(16),
+                              content: const Text('Please enter a valid 6-digit ID.', style: TextStyle(color: Colors.white)),
+                              backgroundColor: Colors.redAccent,
+                              actions: [
+                                TextButton(
+                                  child: const Text('DISMISS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  onPressed: () => ScaffoldMessenger.of(context)
+                                      .hideCurrentMaterialBanner(),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.purple2,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Join',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
+            ),
           );
         },
       );
