@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tournament_app/views/voting_screen.dart';
 import 'dart:math';
 
 class Contestant {
@@ -63,7 +64,12 @@ class _TournamentScreenState extends State<TournamentScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: () {},
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const VoteScreen()),
+                );
+              },
               child: const Text("Continue", style: TextStyle(color: Colors.white, fontSize: 18)),
             ),
           ),
