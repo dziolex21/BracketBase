@@ -22,7 +22,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    void _showJoinTournamentPopup(BuildContext context) {
+    void showJoinTournamentPopup(BuildContext context) {
       final TextEditingController idController = TextEditingController();
 
       showModalBottomSheet(
@@ -212,7 +212,7 @@ class HomeScreen extends StatelessWidget {
                 context,
                 'Join tournament',
                 AppColors.purple4,
-                () => _showJoinTournamentPopup(context)),
+                () => showJoinTournamentPopup(context)),
           ],
         ),
       ),
