@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/views/voting_screen.dart';
+import 'dart:math';
 
 class Contestant {
   final String name;
@@ -26,6 +27,9 @@ class _TournamentScreenState extends State<TournamentScreen> {
     Contestant(name: 'eva01', picture: null),
     Contestant(name: 'eva02', picture: null),
   ];
+
+
+
 
   Contestant? semiFinalWinner1;
   Contestant? semiFinalWinner2;

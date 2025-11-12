@@ -4,7 +4,9 @@ import 'package:tournament_app/views/tournament_creator.dart';
 import 'package:tournament_app/views/tournament_screen.dart';
 
 class TournamentLobby extends StatelessWidget {
-  const TournamentLobby({super.key});
+  final String lobbyId;
+
+  const TournamentLobby({super.key, required this.lobbyId});
 
   @override
   Widget build(BuildContext context) {
@@ -22,10 +24,7 @@ class TournamentLobby extends StatelessWidget {
                 child: IconButton(
                   icon: const Icon(Icons.arrow_back, color: AppColors.purple1),
                   onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const TournamentCreator()),
-                    );
+                    Navigator.of(context).pop();
                   },
                 ),
               ),
@@ -51,9 +50,9 @@ class TournamentLobby extends StatelessWidget {
                       color: AppColors.purple2,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
-                      "123456",
-                      style: TextStyle(
+                    child: Text(
+                      lobbyId,
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
