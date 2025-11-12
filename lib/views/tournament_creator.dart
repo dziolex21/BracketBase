@@ -5,6 +5,7 @@ import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
 import 'package:tournament_app/views/tournament_lobby.dart';
 import 'package:tournament_app/views/tournament_settings.dart';
+import 'package:tournament_app/views/tournament_lobby.dart';
 
 class TournamentCreator extends StatefulWidget {
   const TournamentCreator({super.key});
