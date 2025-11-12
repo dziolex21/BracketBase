@@ -1,6 +1,9 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
+import 'package:tournament_app/views/tournament_lobby.dart';
 import 'package:tournament_app/views/tournament_settings.dart';
 
 class TournamentCreator extends StatefulWidget {
@@ -11,11 +14,7 @@ class TournamentCreator extends StatefulWidget {
 }
 
 class _TournamentCreatorState extends State<TournamentCreator> {
-  final List<String> _contestants = [
-    'Contestant_1',
-    'Contestant_2',
-    'Contestant_3',
-  ];
+  final List<String> _contestants = [];
 
   void _navigateAndEditContestant(BuildContext context, int index) async {
     final result = await Navigator.push(
@@ -105,7 +104,15 @@ class _TournamentCreatorState extends State<TournamentCreator> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    final lobbyId = (Random().nextInt(900000) + 100000).toString();
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => TournamentLobby(lobbyId: lobbyId),
+                      ),
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.purple1,
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
