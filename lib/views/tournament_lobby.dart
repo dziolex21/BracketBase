@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
-import 'package:tournament_app/views/tournament_creator.dart';
 import 'package:tournament_app/views/tournament_screen.dart';
 import 'package:tournament_app/data/TournamentData.dart' as td;
 
