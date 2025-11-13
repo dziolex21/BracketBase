@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
+import 'package:tournament_app/views/tournament_lobby.dart';
 import 'package:tournament_app/views/tournament_settings.dart';
 import 'package:tournament_app/data/TournamentData.dart';
 import 'package:tournament_app/views/tournament_screen.dart';
@@ -108,7 +109,11 @@ class _TournamentCreatorState extends State<TournamentCreator> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TournamentScreen(bracket: bracket),
+        // json creator(lista kontestantow)
+        // zapisujemy do tournament data
+        // rand id + wysli na server
+        builder: (context) => TournamentLobby(lobbyId: '123456'),
+
       ),
     );
   }

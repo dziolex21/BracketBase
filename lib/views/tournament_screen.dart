@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'dart:ui';
 import 'package:tournament_app/configs/color_data.dart';
 
 class TournamentScreen extends StatelessWidget {
@@ -8,9 +7,18 @@ class TournamentScreen extends StatelessWidget {
 
   const TournamentScreen({super.key, required this.bracket});
 
+  int _nextPowerOfTwo(int n) {
+    int power = 1;
+    while (power < n) power <<= 1;
+    return power;
+  }
+
   @override
   Widget build(BuildContext context) {
     final rounds = bracket.keys.toList();
+    final firstRoundPlayers =
+    List<Map<String, dynamic>>.from(bracket[rounds.first] ?? []);
+    final totalSlots = _nextPowerOfTwo(max(1, firstRoundPlayers.length));
 
     return Scaffold(
       backgroundColor: AppColors.purple5,
@@ -24,14 +32,15 @@ class TournamentScreen extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (int i = 0; i < rounds.length; i++)
+            for (int i = 0; i < rounds.length; i++) // i represents the round index: 0, 1, 2...
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _RoundColumn(
                   roundName: rounds[i],
-                  players: List<Map<String, dynamic>>.from(bracket[rounds[i]]),
-                  roundIndex: i,
-                  totalRounds: rounds.length,
+                  players:
+                  List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
+                  totalSlots: totalSlots, // This is the TOTAL number of slots in the first round (e.g., 4, 8, 16...).
+                  roundIndex: i, // The index of the current round.
                 ),
               ),
           ],
@@ -44,55 +53,83 @@ class TournamentScreen extends StatelessWidget {
 class _RoundColumn extends StatelessWidget {
   final String roundName;
   final List<Map<String, dynamic>> players;
-  final int roundIndex;
-  final int totalRounds;
+  final int totalSlots; // Total slots in the first round (e.g., 4, 8, 16).
+  final int roundIndex; // The index of this round (0, 1, 2...).
 
   const _RoundColumn({
     required this.roundName,
     required this.players,
+    required this.totalSlots,
     required this.roundIndex,
-    required this.totalRounds,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Calculate the vertical spacing between contestant cards in this round.
-    // The spacing increases exponentially with each round (`roundIndex`) to align
-    // the cards with the bracket lines that would connect them.
-    // `pow(2, roundIndex)` doubles the spacing for each subsequent round.
-    final spacing = pow(2, roundIndex).toDouble() * 30;
+    const double totalHeight = 800;
+    const double cardHeight = 80;
 
-    // Calculate the height of the contestant cards for this round.
-    // Cards get slightly taller in later rounds.
-    final cardHeight = 80.0 + roundIndex * 10;
+    // --- CORE LOGIC FOR DYNAMIC BRACKET SPACING ---
+    // Calculate the number of slots for THIS specific round.
+    // The number of slots halves with each subsequent round.
+    // Round 0: totalSlots / 2^0 = totalSlots (e.g., 8)
+    // Round 1: totalSlots / 2^1 = totalSlots / 2 (e.g., 4)
+    // Round 2: totalSlots / 2^2 = totalSlots / 4 (e.g., 2)
+    final int slotsInThisRound = (totalSlots / pow(2, roundIndex)).ceil();
 
-    // A Column widget to lay out the round's title and its contestants vertically.
-    return Column(
-      children: [
-        // Display the name of the round (e.g., "Round 1", "Quarterfinals").
-        Text(
-          roundName,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+    // Generate vertical positions (as fractions of totalHeight) based on the number of slots in THIS round.
+    // This centers each card within its designated vertical slice of the column.
+    List<double> positions = List.generate(
+      slotsInThisRound, // Use the calculated slots for this round.
+          (i) => (i * 2 + 1) / (2 * slotsInThisRound), // The formula for calculating center points.
+    );
+    // For 4 slots, positions are: [1/8, 3/8, 5/8, 7/8]
+    // For 2 slots, positions are: [1/4, 3/4]
+    // For 1 slot, position is:    [1/2]
+    // ----------------------------------------------------
+
+    return SizedBox(
+      width: 150,
+      height: totalHeight,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Text(
+                roundName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
           ),
-        ),
-        // A small fixed space between the round title and the first card.
-        const SizedBox(height: 12),
-        // Loop through the list of players for this round and generate a card for each one.
-        // The `...` is the spread operator, which inserts the generated list of widgets
-        // into the parent `Column`'s `children` list.
-        for (int i = 0; i < players.length; i++) ...[
-          // Add the calculated `spacing` *before* each card except the first one.
-          if (i > 0) SizedBox(height: spacing),
-          _ContestantCard(
-            name: players[i]['name'],
-            pictureId: players[i]['picture_id'],
-            height: cardHeight,
-          ),
+          // Iterate up to the number of slots in this round to create placeholders for matchups.
+          for (int i = 0; i < slotsInThisRound; i++)
+            Positioned(
+              top: totalHeight * positions[i] - cardHeight / 2,
+              left: 0,
+              right: 0,
+              child: (i < players.length) // If a player exists for this slot, show their card.
+                  ? _ContestantCard(
+                name: players[i]['name'] ?? '???',
+                pictureId: (players[i]['picture_id'] is int)
+                    ? players[i]['picture_id']
+                    : 0,
+                height: cardHeight,
+              )
+                  : const Opacity( // Otherwise, show an invisible placeholder to maintain spacing.
+                opacity: 0.0,
+                child: _ContestantCard(
+                    name: 'empty', pictureId: 0, height: cardHeight),
+              ),
+            ),
         ],
-      ],
+      ),
     );
   }
 }
@@ -110,6 +147,8 @@ class _ContestantCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double avatarRadius = height * 0.25;
+
     return Container(
       width: 120,
       height: height,
@@ -128,17 +167,16 @@ class _ContestantCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // если картинка есть — показываем, иначе ?
           CircleAvatar(
-            radius: height * 0.25,
+            radius: avatarRadius,
             backgroundColor: AppColors.purple4,
-            backgroundImage: AssetImage('assets/pic$pictureId.jpg'),
+            backgroundImage: (pictureId > 0)
+                ? AssetImage('assets/pic$pictureId.jpg')
+                : null,
             onBackgroundImageError: (_, __) {},
-            child: Image.asset(
-              'assets/pic$pictureId.jpg',
-              errorBuilder: (_, __, ___) =>
-              const Text('?', style: TextStyle(fontSize: 28, color: Colors.white)),
-            ),
+            child: (pictureId > 0)
+                ? null
+                : const Text('?', style: TextStyle(fontSize: 28, color: Colors.white)),
           ),
           const SizedBox(height: 8),
           Text(
