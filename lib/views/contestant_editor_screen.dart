@@ -34,11 +34,11 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      // TODO: Call the image converter service
-      // final String newImagePath = await ImageConverter.convert(image);
-      // setState(() {
-      //   _imagePath = newImagePath;
-      // });
+      // The image_converter.dart file simply returns the path of the picked image.
+      final String newImagePath = await ImageConverter.convert(image);
+      setState(() {
+        _imagePath = newImagePath;
+      });
     }
   }
 
@@ -91,7 +91,9 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                   children: [
                     Expanded(
                       child: Center(
-                        child: Image.asset(_imagePath),
+                        // Since ImageConverter returns a file path, we need to use Image.file
+                        // for new images, but keep Image.asset for the placeholder.
+                        child: _imagePath.startsWith('assets/') ? Image.asset(_imagePath) : Image.file(File(_imagePath)),
                       ),
                     ),
                     const SizedBox(height: 16.0),
