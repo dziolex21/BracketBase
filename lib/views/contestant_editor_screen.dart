@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
+import 'package:tournament_app/views/tournament_creator.dart';
 
 class ContestantEditorScreen extends StatefulWidget {
-  final String? contestantName;
+  final Contestant? contestant;
 
-  const ContestantEditorScreen({super.key, this.contestantName});
+  const ContestantEditorScreen({super.key, this.contestant});
 
   @override
   State<ContestantEditorScreen> createState() => _ContestantEditorScreenState();
@@ -12,11 +13,13 @@ class ContestantEditorScreen extends StatefulWidget {
 
 class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
   late final TextEditingController _nameController;
+  late String _imagePath;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.contestantName);
+    _nameController = TextEditingController(text: widget.contestant?.name);
+    _imagePath = widget.contestant?.picture ?? 'assets/placeholder_image.png';
   }
 
   @override
@@ -74,7 +77,7 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                   children: [
                     Expanded(
                       child: Center(
-                        child: Image.asset('assets/placeholder_image.png'),
+                        child: Image.asset(_imagePath),
                       ),
                     ),
                     const SizedBox(height: 16.0),
@@ -103,7 +106,12 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.of(context).pop(_nameController.text);
+                          if (_nameController.text.isNotEmpty) {
+                            Navigator.of(context).pop(Contestant(
+                              name: _nameController.text,
+                              picture: _imagePath,
+                            ));
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.purple1,

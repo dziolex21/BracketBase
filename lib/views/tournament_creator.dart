@@ -9,14 +9,12 @@ import 'package:tournament_app/views/tournament_screen.dart';
 class Contestant {
   final String name;
   final String picture;
-  final int pictureId;
 
-  Contestant({required this.name, required this.picture, required this.pictureId});
+  Contestant({required this.name, required this.picture});
 
   Map<String, dynamic> toJson() => {
     'name': name,
     'votes': 0,
-    'picture_id': pictureId,
   };
 }
 
@@ -63,17 +61,19 @@ class TournamentCreator extends StatefulWidget {
 }
 
 class _TournamentCreatorState extends State<TournamentCreator> {
-  final List<String> _contestants = [];
+  final List<Contestant> _contestants = [
+    
+  ];
 
   void _navigateAndEditContestant(BuildContext context, int index) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ContestantEditorScreen(contestantName: _contestants[index]),
+        builder: (context) => ContestantEditorScreen(contestant: _contestants[index]),
       ),
     );
 
-    if (result != null && result is String && result.isNotEmpty) {
+    if (result != null && result is Contestant) {
       setState(() {
         _contestants[index] = result;
       });
@@ -84,11 +84,11 @@ class _TournamentCreatorState extends State<TournamentCreator> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const ContestantEditorScreen(),
+        builder: (context) => ContestantEditorScreen(),
       ),
     );
 
-    if (result != null && result is String && result.isNotEmpty) {
+    if (result != null && result is Contestant) {
       setState(() {
         _contestants.add(result);
       });
@@ -103,17 +103,12 @@ class _TournamentCreatorState extends State<TournamentCreator> {
       return;
     }
 
-    final List<Contestant> formatted = List.generate(
-      _contestants.length,
-          (i) => Contestant(name: _contestants[i], picture: 'pic${i + 1}.jpg', pictureId: i + 1),
-    );
-
-    final bracket = createTournamentBracket(formatted);
+    final bracket = createTournamentBracket(_contestants);
 
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TournamentScreen(bracket: sampleBracket),
+        builder: (context) => TournamentScreen(bracket: bracket),
       ),
     );
   }
@@ -210,7 +205,7 @@ class _TournamentCreatorState extends State<TournamentCreator> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              _contestants[index],
+              _contestants[index].name,
               style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
             const Icon(Icons.edit_outlined, color: Colors.white, size: 22),
