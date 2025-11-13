@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:tournament_app/views/voting_screen.dart';
 import 'dart:math';
 import 'dart:ui';
 import 'package:tournament_app/configs/color_data.dart';
@@ -35,49 +34,7 @@ class TournamentScreen extends StatelessWidget {
                   totalRounds: rounds.length,
                 ),
               ),
-<<<<<<< Updated upstream
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const VoteScreen()),
-                );
-              },
-              child: const Text("Continue", style: TextStyle(color: Colors.white, fontSize: 18)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStageSelector() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _stageChip("1/16", false),
-        _stageChip("1/8", false),
-        _stageChip("1/4", false),
-        _stageChip("Final", true),
-      ],
-    );
-  }
-
-  Widget _stageChip(String text, bool selected) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: selected ? Colors.black : Colors.purple.shade700,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: selected ? Colors.white : Colors.white70,
-          fontWeight: FontWeight.bold,
-=======
           ],
->>>>>>> Stashed changes
         ),
       ),
     );
@@ -99,11 +56,20 @@ class _RoundColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spacing = pow(2, roundIndex).toDouble() * 30; // отступы растут
-    final cardHeight = 80.0 + roundIndex * 10; // чем дальше раунд, тем больше карточка
+    // Calculate the vertical spacing between contestant cards in this round.
+    // The spacing increases exponentially with each round (`roundIndex`) to align
+    // the cards with the bracket lines that would connect them.
+    // `pow(2, roundIndex)` doubles the spacing for each subsequent round.
+    final spacing = pow(2, roundIndex).toDouble() * 30;
 
+    // Calculate the height of the contestant cards for this round.
+    // Cards get slightly taller in later rounds.
+    final cardHeight = 80.0 + roundIndex * 10;
+
+    // A Column widget to lay out the round's title and its contestants vertically.
     return Column(
       children: [
+        // Display the name of the round (e.g., "Round 1", "Quarterfinals").
         Text(
           roundName,
           style: const TextStyle(
@@ -112,8 +78,13 @@ class _RoundColumn extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
+        // A small fixed space between the round title and the first card.
         const SizedBox(height: 12),
+        // Loop through the list of players for this round and generate a card for each one.
+        // The `...` is the spread operator, which inserts the generated list of widgets
+        // into the parent `Column`'s `children` list.
         for (int i = 0; i < players.length; i++) ...[
+          // Add the calculated `spacing` *before* each card except the first one.
           if (i > 0) SizedBox(height: spacing),
           _ContestantCard(
             name: players[i]['name'],
@@ -162,7 +133,7 @@ class _ContestantCard extends StatelessWidget {
             radius: height * 0.25,
             backgroundColor: AppColors.purple4,
             backgroundImage: AssetImage('assets/pic$pictureId.jpg'),
-            onBackgroundImageError: (_, __) {}, // не крашится, если файла нет
+            onBackgroundImageError: (_, __) {},
             child: Image.asset(
               'assets/pic$pictureId.jpg',
               errorBuilder: (_, __, ___) =>
