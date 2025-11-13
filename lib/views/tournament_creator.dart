@@ -1,11 +1,59 @@
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
-import 'package:tournament_app/views/tournament_lobby.dart';
 import 'package:tournament_app/views/tournament_settings.dart';
-import 'package:tournament_app/views/tournament_lobby.dart';
+import 'package:tournament_app/data/TournamentData.dart';
+import 'package:tournament_app/views/tournament_screen.dart';
+
+class Contestant {
+  final String name;
+  final String picture;
+  final int pictureId;
+
+  Contestant({required this.name, required this.picture, required this.pictureId});
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'votes': 0,
+    'picture_id': pictureId,
+  };
+}
+
+Map<String, List<Map<String, dynamic>>> createTournamentBracket(List<Contestant> contestants) {
+  int n = contestants.length;
+  int nextPowerOf2 = pow(2, (log(n) / log(2)).ceil()).toInt();
+  int byes = nextPowerOf2 - n;
+
+  final roundNames = ['1/32', '1/16', '1/8', '1/4', '1/2', '1'];
+  String firstRound = roundNames[(log(nextPowerOf2) / log(2)).toInt() - 1];
+
+  List<Map<String, dynamic>> firstRoundPairs = contestants.map((c) => c.toJson()).toList();
+
+  List<Map<String, dynamic>> nextRoundByes = [];
+  if (byes > 0) {
+    nextRoundByes = firstRoundPairs.sublist(n - byes);
+    firstRoundPairs = firstRoundPairs.sublist(0, n - byes);
+  }
+
+  Map<String, List<Map<String, dynamic>>> bracket = {
+    firstRound: firstRoundPairs,
+  };
+
+  int roundsCount = (log(nextPowerOf2) / log(2)).toInt();
+  for (int i = 1; i < roundsCount; i++) {
+    bracket[roundNames[(roundNames.indexOf(firstRound) + i)]] = [];
+  }
+
+  if (nextRoundByes.isNotEmpty) {
+    String nextRoundName = roundNames[(roundNames.indexOf(firstRound) + 1)];
+    bracket[nextRoundName] = nextRoundByes;
+  }
+
+  return bracket;
+}
+
+
 
 class TournamentCreator extends StatefulWidget {
   const TournamentCreator({super.key});
@@ -45,6 +93,29 @@ class _TournamentCreatorState extends State<TournamentCreator> {
         _contestants.add(result);
       });
     }
+  }
+
+  void _startTournament(BuildContext context) {
+    if (_contestants.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add at least 2 contestants to start tournament')),
+      );
+      return;
+    }
+
+    final List<Contestant> formatted = List.generate(
+      _contestants.length,
+          (i) => Contestant(name: _contestants[i], picture: 'pic${i + 1}.jpg', pictureId: i + 1),
+    );
+
+    final bracket = createTournamentBracket(formatted);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TournamentScreen(bracket: sampleBracket),
+      ),
+    );
   }
 
   @override
@@ -91,7 +162,7 @@ class _TournamentCreatorState extends State<TournamentCreator> {
                 ),
                 child: ListView.separated(
                   shrinkWrap: true,
-                  itemCount: _contestants.length + 1, // +1 for the add button
+                  itemCount: _contestants.length + 1,
                   separatorBuilder: (context, index) => const SizedBox(height: 12.0),
                   itemBuilder: (context, index) {
                     if (index == _contestants.length) {
@@ -105,15 +176,7 @@ class _TournamentCreatorState extends State<TournamentCreator> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    final lobbyId = (Random().nextInt(900000) + 100000).toString();
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => TournamentLobby(lobbyId: lobbyId),
-                      ),
-                    );
-                  },
+                  onPressed: () => _startTournament(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.purple1,
                     padding: const EdgeInsets.symmetric(vertical: 16.0),

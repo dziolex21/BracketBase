@@ -1,190 +1,153 @@
 import 'package:flutter/material.dart';
-import 'package:tournament_app/views/voting_screen.dart';
 import 'dart:math';
+import 'dart:ui';
+import 'package:tournament_app/configs/color_data.dart';
 
-class Contestant {
-  final String name;
-  final String? picture;
+class TournamentScreen extends StatelessWidget {
+  final Map<String, dynamic> bracket;
 
-  Contestant({required this.name, this.picture});
-}
-
-class TournamentScreen extends StatefulWidget {
-  const TournamentScreen({super.key});
-
-  @override
-  State<TournamentScreen> createState() => _TournamentScreenState();
-}
-
-class _TournamentScreenState extends State<TournamentScreen> {
-  // Mock contestants for testing locally
-  final List<Contestant> contestants = [
-    Contestant(name: 'Misato', picture: null),
-    Contestant(name: 'Rei', picture: null),
-    Contestant(name: 'Asuka', picture: null),
-    Contestant(name: 'Shinji', picture: null),
-    Contestant(name: 'Ritsuko', picture: null),
-    Contestant(name: 'eva01', picture: null),
-    Contestant(name: 'eva02', picture: null),
-  ];
-
-
-
-
-  Contestant? semiFinalWinner1;
-  Contestant? semiFinalWinner2;
+  const TournamentScreen({super.key, required this.bracket});
 
   @override
   Widget build(BuildContext context) {
+    final rounds = bracket.keys.toList();
+
     return Scaffold(
-      backgroundColor: const Color(0xFF4A2674),
+      backgroundColor: AppColors.purple5,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2E1A47),
-        title: const Text(
-          "Tournament",
-          style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
+        title: const Text('Tournament'),
+        backgroundColor: AppColors.purple3,
       ),
-      body: Column(
-        children: [
-          const SizedBox(height: 16),
-          _buildStageSelector(),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Center(
-              child: _buildBracket(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20.0),
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      body: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (int i = 0; i < rounds.length; i++)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _RoundColumn(
+                  roundName: rounds[i],
+                  players: List<Map<String, dynamic>>.from(bracket[rounds[i]]),
+                  roundIndex: i,
+                  totalRounds: rounds.length,
+                ),
               ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const VoteScreen()),
-                );
-              },
-              child: const Text("Continue", style: TextStyle(color: Colors.white, fontSize: 18)),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildStageSelector() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+class _RoundColumn extends StatelessWidget {
+  final String roundName;
+  final List<Map<String, dynamic>> players;
+  final int roundIndex;
+  final int totalRounds;
+
+  const _RoundColumn({
+    required this.roundName,
+    required this.players,
+    required this.roundIndex,
+    required this.totalRounds,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Calculate the vertical spacing between contestant cards in this round.
+    // The spacing increases exponentially with each round (`roundIndex`) to align
+    // the cards with the bracket lines that would connect them.
+    // `pow(2, roundIndex)` doubles the spacing for each subsequent round.
+    final spacing = pow(2, roundIndex).toDouble() * 30;
+
+    // Calculate the height of the contestant cards for this round.
+    // Cards get slightly taller in later rounds.
+    final cardHeight = 80.0 + roundIndex * 10;
+
+    // A Column widget to lay out the round's title and its contestants vertically.
+    return Column(
       children: [
-        _stageChip("1/16", false),
-        _stageChip("1/8", false),
-        _stageChip("1/4", false),
-        _stageChip("Final", true),
+        // Display the name of the round (e.g., "Round 1", "Quarterfinals").
+        Text(
+          roundName,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        // A small fixed space between the round title and the first card.
+        const SizedBox(height: 12),
+        // Loop through the list of players for this round and generate a card for each one.
+        // The `...` is the spread operator, which inserts the generated list of widgets
+        // into the parent `Column`'s `children` list.
+        for (int i = 0; i < players.length; i++) ...[
+          // Add the calculated `spacing` *before* each card except the first one.
+          if (i > 0) SizedBox(height: spacing),
+          _ContestantCard(
+            name: players[i]['name'],
+            pictureId: players[i]['picture_id'],
+            height: cardHeight,
+          ),
+        ],
       ],
     );
   }
+}
 
-  Widget _stageChip(String text, bool selected) {
+class _ContestantCard extends StatelessWidget {
+  final String name;
+  final int pictureId;
+  final double height;
+
+  const _ContestantCard({
+    required this.name,
+    required this.pictureId,
+    required this.height,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      width: 120,
+      height: height,
       decoration: BoxDecoration(
-        color: selected ? Colors.black : Colors.purple.shade700,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: selected ? Colors.white : Colors.white70,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBracket() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildRound([
-            contestants[0],
-            contestants[1],
-            contestants[2],
-            contestants[3],
-            contestants[4],
-            contestants[5],
-            contestants[6],
-          ]),
-          const SizedBox(width: 40),
-          _buildRound([
-            contestants[1],
-            contestants[4],
-            contestants[2],
-            contestants[5],
-          ]),
-          const SizedBox(width: 40),
-          _buildFinal(),
+        color: AppColors.purple3,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.purple1, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.purple2.withOpacity(0.4),
+            blurRadius: 8,
+            offset: const Offset(2, 4),
+          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildRound(List<Contestant> roundContestants) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: roundContestants.map((c) => _contestantCard(c)).toList(),
-    );
-  }
-
-  Widget _contestantCard(Contestant c) {
-    return Container(
-      width: 100,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.purple.shade300,
-        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            height: 60,
-            width: 60,
-            decoration: BoxDecoration(
-              color: Colors.purple.shade200,
-              borderRadius: BorderRadius.circular(8),
-              image: c.picture != null
-                  ? DecorationImage(image: AssetImage(c.picture!), fit: BoxFit.cover)
-                  : null,
+          // если картинка есть — показываем, иначе ?
+          CircleAvatar(
+            radius: height * 0.25,
+            backgroundColor: AppColors.purple4,
+            backgroundImage: AssetImage('assets/pic$pictureId.jpg'),
+            onBackgroundImageError: (_, __) {},
+            child: Image.asset(
+              'assets/pic$pictureId.jpg',
+              errorBuilder: (_, __, ___) =>
+              const Text('?', style: TextStyle(fontSize: 28, color: Colors.white)),
             ),
-            child: c.picture == null
-                ? const Icon(Icons.person, color: Colors.white, size: 40)
-                : null,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
-            c.name,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            name,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildFinal() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: const [
-        Icon(Icons.help_outline, color: Colors.white, size: 48),
-      ],
     );
   }
 }
