@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:tournament_app/configs/color_data.dart';
+import 'package:tournament_app/services/image_converter.dart';
 import 'package:tournament_app/views/tournament_creator.dart';
 
 class ContestantEditorScreen extends StatefulWidget {
@@ -14,6 +16,7 @@ class ContestantEditorScreen extends StatefulWidget {
 class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
   late final TextEditingController _nameController;
   late String _imagePath;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -26,6 +29,17 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
   void dispose() {
     _nameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      // TODO: Call the image converter service
+      // final String newImagePath = await ImageConverter.convert(image);
+      // setState(() {
+      //   _imagePath = newImagePath;
+      // });
+    }
   }
 
   @override
@@ -84,9 +98,7 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          // TODO: Implement image change functionality
-                        },
+                        onPressed: _pickImage,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.purple3,
                           padding: const EdgeInsets.symmetric(vertical: 12.0),
