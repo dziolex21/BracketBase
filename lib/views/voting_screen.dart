@@ -14,7 +14,7 @@ class VoteScreen extends StatefulWidget {
 
 class _VoteScreenState extends State<VoteScreen> {
   final docRefVotes = FirebaseFirestore.instance.collection(quizId).doc("votes");
-  final docRefLobby = FirebaseFirestore.instance.collection(quizId).doc("Lobby");
+  final docRefLobby = FirebaseFirestore.instance.collection(quizId).doc("lobby");
 
   int expectedVotes = 0;
 
@@ -67,7 +67,7 @@ class _VoteScreenState extends State<VoteScreen> {
             final data = snapshot.data!.data() as Map<String, dynamic>;
             final votesA = data['optionA'] ?? 0;
             final votesB = data['optionB'] ?? 0;
-            final totalVotes = data['totalVotes'] ?? 0;
+            final totalVotes = votesA + votesB;
 
             // ✅ Jeśli wszyscy zagłosowali -> przejście do wyników
             if (totalVotes >= expectedVotes) {
@@ -206,9 +206,9 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
           child: Column(
             children: [
               Container(
-                decoration: const BoxDecoration(
-                  color: AppColors.purple4,
-                  borderRadius: BorderRadius.only(
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.purple3 : AppColors.purple4,
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(16),
                     topRight: Radius.circular(16),
                   ),
@@ -232,9 +232,9 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: const BoxDecoration(
-                  color: AppColors.purple4,
-                  borderRadius: BorderRadius.only(
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.purple3 : AppColors.purple4,
+                  borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(16),
                     bottomRight: Radius.circular(16),
                   ),
