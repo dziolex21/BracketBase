@@ -93,8 +93,29 @@ class _TournamentScreenState extends State<TournamentScreen> {
     final bracket = _bracket!;
     final rounds = bracket.keys.toList();
     final firstRoundPlayers =
-        List<Map<String, dynamic>>.from(bracket[rounds.first] ?? []);
-    final totalSlots = _nextPowerOfTwo(max(1, firstRoundPlayers.length));
+    List<Map<String, dynamic>>.from(bracket[rounds.first] ?? []);
+
+    // Count the total number of contestants
+    int totalContestants = firstRoundPlayers.length;
+
+    // If there is a 2nd round, look for byes in it
+    if (rounds.length > 1) {
+      final List<Map<String, dynamic>> secondRoundSlots =
+      List<Map<String, dynamic>>.from(bracket[rounds[1]] ?? []);
+
+      // "Byes" are participants in the 2nd round with a non-empty name
+      final int byes = secondRoundSlots
+          .where((player) =>
+      player['name'] != null && (player['name'] as String).isNotEmpty)
+          .length;
+
+      totalContestants += byes;
+    }
+
+    // totalSlots is the "next power of two" of the TOTAL number of contestants
+    final totalSlots = _nextPowerOfTwo(max(1, totalContestants));
+
+
 
     return Scaffold(
       backgroundColor: AppColors.purple5,
@@ -103,23 +124,25 @@ class _TournamentScreenState extends State<TournamentScreen> {
         backgroundColor: AppColors.purple3,
       ),
       body: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (int i = 0; i < rounds.length; i++)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _RoundColumn(
-                  roundName: rounds[i],
-                  players:
-                      List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
-                  totalSlots: totalSlots,
-                  roundIndex: i,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 0; i < rounds.length; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _RoundColumn(
+                    roundName: rounds[i],
+                    players:
+                    List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
+                    totalSlots: totalSlots,
+                    roundIndex: i,
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -141,24 +164,39 @@ class _RoundColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const double totalHeight = 800;
-    const double cardHeight = 80;
+    const double totalHeight = 800; // Total "canvas" for positioning
+    const double titleTopPadding = 10;
+    const double cardsTopOffset = 40;
 
     final int slotsInThisRound = (totalSlots / pow(2, roundIndex)).ceil();
 
-    List<double> positions = List.generate(
+    // 1. Calculate how much space is available for 1 slot
+    final double availableSpacePerSlot =
+        (totalHeight - cardsTopOffset) / slotsInThisRound;
+
+    // 2. Calculate the card height (85% of the space) to have some padding
+    final double calculatedCardHeight = availableSpacePerSlot * 0.85;
+
+    // 3. Limit: not less than 30px (for 1/32) and not more than 100px (for 1/2)
+    final double finalCardHeight = calculatedCardHeight.clamp(30.0, 100.0);
+
+    // Card width is now dependent on the card height (with a 1.5 ratio)
+    // It also has min/max limits to avoid being too thin or too wide
+    final double cardWidth = (finalCardHeight * 1.5).clamp(80.0, 150.0);
+
+    final List<double> positions = List.generate(
       slotsInThisRound,
-      (i) => (i * 2 + 1) / (2 * slotsInThisRound),
+          (i) => (i * 2 + 1) / (2 * slotsInThisRound),
     );
 
     return SizedBox(
-      width: 150,
+      width: cardWidth,
       height: totalHeight,
-      child: Stack(
+      child: Stack( // Use a variable
         clipBehavior: Clip.none,
         children: [
           Positioned(
-            top: 0,
+            top: titleTopPadding,
             left: 0,
             right: 0,
             child: Center(
@@ -174,20 +212,22 @@ class _RoundColumn extends StatelessWidget {
           ),
           for (int i = 0; i < slotsInThisRound; i++)
             Positioned(
-              top: totalHeight * positions[i] - cardHeight / 2,
+              top: (totalHeight * positions[i] - finalCardHeight / 2) + cardsTopOffset,
               left: 0,
               right: 0,
-              child: (i < players.length && players[i]['name'].isNotEmpty)
+              child: (i < players.length)
                   ? _ContestantCard(
-                      name: players[i]['name'] ?? '???',
-                      picture: players[i]['picture'] ?? '',
-                      height: cardHeight,
-                    )
-                  : const Opacity(
-                      opacity: 0.0,
-                      child: _ContestantCard(
-                          name: 'empty', picture: '', height: cardHeight),
-                    ),
+                name: players[i]['name'] ?? '???',
+                picture: players[i]['picture'] ?? '',
+                // Pass dynamic height and fixed width
+                height: finalCardHeight,
+                width: cardWidth,
+              )
+                  : Opacity(
+                opacity: 0.0,
+                child: _ContestantCard(
+                    name: 'empty', picture: '', height: finalCardHeight, width: cardWidth),
+              ),
             ),
         ],
       ),
@@ -199,16 +239,27 @@ class _ContestantCard extends StatelessWidget {
   final String name;
   final String picture;
   final double height;
+  final double width;
 
   const _ContestantCard({
     required this.name,
     required this.picture,
     required this.height,
+    required this.width,
   });
+
+  // Helper widget for "?"
+  Widget _buildFallback() {
+    return const Center(
+      child: Text('?', style: TextStyle(fontSize: 28, color: Colors.white)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final double avatarRadius = height * 0.25;
+    // Calculate the image size (55% of the card height)
+    final double imageHeight = height * 0.55;
+    final double imageWidth = imageHeight;
 
     ImageProvider? backgroundImage;
     if (picture.isNotEmpty) {
@@ -220,8 +271,8 @@ class _ContestantCard extends StatelessWidget {
     }
 
     return Container(
-      width: 120,
-      height: height,
+      width: width, // <-- Use width
+      height: height, // <-- Use height
       decoration: BoxDecoration(
         color: AppColors.purple3,
         borderRadius: BorderRadius.circular(16),
@@ -237,14 +288,23 @@ class _ContestantCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: avatarRadius,
-            backgroundColor: AppColors.purple4,
-            backgroundImage: backgroundImage,
-            onBackgroundImageError: (_, __) {},
-            child: (backgroundImage == null)
-                ? const Text('?', style: TextStyle(fontSize: 28, color: Colors.white))
-                : null,
+          SizedBox(
+            height: imageHeight,
+            width: imageWidth,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12), // <-- Rounded corners
+              child: Container(
+                color: AppColors.purple4, // Background for "?"
+                child: (backgroundImage != null)
+                    ? Image(
+                  image: backgroundImage,
+                  fit: BoxFit.cover, // Fills the rectangle
+                  // Error handler for File/AssetImage
+                  errorBuilder: (_, __, ___) => _buildFallback(),
+                )
+                    : _buildFallback(),
+              ),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
