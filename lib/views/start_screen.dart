@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tournament_app/configs/color_data.dart';
@@ -106,17 +107,39 @@ class HomeScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         final enteredId = idController.text;
                         if (enteredId.length == 6) {
                           Navigator.pop(modalContext); // Close the modal
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  TournamentLobby(lobbyId: enteredId),
-                            ),
-                          );
+
+                          final docRef = FirebaseFirestore.instance.collection('tournaments').doc(enteredId);
+                          final doc = await docRef.get();
+  
+                          if (doc.exists) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    TournamentLobby(lobbyId: enteredId),
+                              ),
+                            );
+                          } else {
+                            Navigator.pop(modalContext); // Close the modal first
+                            ScaffoldMessenger.of(context).showMaterialBanner(
+                              MaterialBanner(
+                                padding: const EdgeInsets.all(16),
+                                content: const Text('Did not find quiz with such id', style: TextStyle(color: Colors.white)),
+                                backgroundColor: Colors.redAccent,
+                                actions: [
+                                  TextButton(
+                                    child: const Text('DISMISS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                    onPressed: () => ScaffoldMessenger.of(context)
+                                        .hideCurrentMaterialBanner(),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
                         } else {
                            Navigator.pop(modalContext); // Close the modal first
                            ScaffoldMessenger.of(context).showMaterialBanner(

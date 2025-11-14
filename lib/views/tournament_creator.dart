@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
@@ -96,7 +97,32 @@ class _TournamentCreatorState extends State<TournamentCreator> {
     }
   }
 
-  void _startTournament(BuildContext context) {
+  void createTournamentOnServer(String id) async {
+    // Referencja do głównej kolekcji z użyciem ID przekazanego w argumencie
+    final mainDocRef = FirebaseFirestore.instance.collection('tournaments').doc(id);
+
+    // Dane głównego dokumentu (4 pola)
+    final mainData = {
+      'optionAVotes': 0,
+      'optionBVotes': 0,
+      'playersList': [],
+      'roundResult': 0 // 0 dla opcji A, 1 dla opcji B
+    };
+
+    // Tworzenie dokumentu głównego
+    await mainDocRef.set(mainData);
+
+    // Tworzenie pustej kolekcji 'contestantImages' poprzez dodanie dokumentu placeholder
+    // TODO: dodać w ten sposób listę zdjęć
+    await mainDocRef
+        .collection('contestantImages')
+        .doc('init') // nazwa dokumentu w subkolekcji - musi być przynajmniej jeden dokument, aby powstała kolekcja
+        .set({});   // pusty dokument
+  }
+
+
+
+  void _startTournament(BuildContext context) async {
     if (_contestants.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Add at least 2 contestants to start tournament')),
@@ -105,6 +131,25 @@ class _TournamentCreatorState extends State<TournamentCreator> {
     }
 
     final bracket = createTournamentBracket(_contestants);
+
+    // json creator(lista kontestantow)
+    // zapisujemy do tournament data
+    // rand id + wysli na server
+    final random = Random();
+    String id = "";
+    for (int i = 0; i < 6; i++) {
+      id += random.nextInt(10).toString();
+    }
+
+    final docRef = FirebaseFirestore.instance.collection("tournaments").doc(id);
+    final docSnapshot = await docRef.get(); // pobiera dokument
+    while (docSnapshot.exists) {
+      id = "";
+      for (int i = 0; i < 6; i++) {
+        id += random.nextInt(10).toString();
+      }
+    }
+    createTournamentOnServer(id);
 
     Navigator.push(
       context,
