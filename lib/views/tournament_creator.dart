@@ -1,59 +1,15 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:tournament_app/configs/color_data.dart';
+import 'package:tournament_app/services/json_creator.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
 import 'package:tournament_app/views/tournament_lobby.dart';
 import 'package:tournament_app/views/tournament_settings.dart';
-import 'package:tournament_app/data/tournament_data.dart';
-import 'package:tournament_app/views/tournament_screen.dart';
-
-class Contestant {
-  final String name;
-  final String picture;
-
-  Contestant({required this.name, required this.picture});
-
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'votes': 0,
-  };
-}
-
-Map<String, List<Map<String, dynamic>>> createTournamentBracket(List<Contestant> contestants) {
-  int n = contestants.length;
-  int nextPowerOf2 = pow(2, (log(n) / log(2)).ceil()).toInt();
-  int byes = nextPowerOf2 - n;
-
-  final roundNames = ['1/32', '1/16', '1/8', '1/4', '1/2', '1'];
-  String firstRound = roundNames[(log(nextPowerOf2) / log(2)).toInt() - 1];
-
-  List<Map<String, dynamic>> firstRoundPairs = contestants.map((c) => c.toJson()).toList();
-
-  List<Map<String, dynamic>> nextRoundByes = [];
-  if (byes > 0) {
-    nextRoundByes = firstRoundPairs.sublist(n - byes);
-    firstRoundPairs = firstRoundPairs.sublist(0, n - byes);
-  }
-
-  Map<String, List<Map<String, dynamic>>> bracket = {
-    firstRound: firstRoundPairs,
-  };
-
-  int roundsCount = (log(nextPowerOf2) / log(2)).toInt();
-  for (int i = 1; i < roundsCount; i++) {
-    bracket[roundNames[(roundNames.indexOf(firstRound) + i)]] = [];
-  }
-
-  if (nextRoundByes.isNotEmpty) {
-    String nextRoundName = roundNames[(roundNames.indexOf(firstRound) + 1)];
-    bracket[nextRoundName] = nextRoundByes;
-  }
-
-  return bracket;
-}
-
-
 
 class TournamentCreator extends StatefulWidget {
   const TournamentCreator({super.key});
@@ -63,22 +19,27 @@ class TournamentCreator extends StatefulWidget {
 }
 
 class _TournamentCreatorState extends State<TournamentCreator> {
-  final List<Contestant> _contestants = [
-    
-  ];
+  final List<Contestant> _contestants = [];
 
   void _navigateAndEditContestant(BuildContext context, int index) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ContestantEditorScreen(contestant: _contestants[index]),
+        builder: (context) =>
+            ContestantEditorScreen(contestant: _contestants[index]),
       ),
     );
 
-    if (result != null && result is Contestant) {
-      setState(() {
-        _contestants[index] = result;
-      });
+    if (result != null) {
+      if (result == 'DELETE') {
+        setState(() {
+          _contestants.removeAt(index);
+        });
+      } else if (result is Contestant) {
+        setState(() {
+          _contestants[index] = result;
+        });
+      }
     }
   }
 
@@ -86,7 +47,7 @@ class _TournamentCreatorState extends State<TournamentCreator> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ContestantEditorScreen(),
+        builder: (context) => const ContestantEditorScreen(),
       ),
     );
 
@@ -98,43 +59,35 @@ class _TournamentCreatorState extends State<TournamentCreator> {
   }
 
   void createTournamentOnServer(String id) async {
-    // Referencja do głównej kolekcji z użyciem ID przekazanego w argumencie
-    final mainDocRef = FirebaseFirestore.instance.collection('tournaments').doc(id);
+    final mainDocRef =
+        FirebaseFirestore.instance.collection('tournaments').doc(id);
 
-    // Dane głównego dokumentu (4 pola)
     final mainData = {
       'optionAVotes': 0,
       'optionBVotes': 0,
       'playersList': [],
-      'roundResult': 0 // 0 dla opcji A, 1 dla opcji B
+      'roundResult': 0
     };
 
-    // Tworzenie dokumentu głównego
     await mainDocRef.set(mainData);
 
-    // Tworzenie pustej kolekcji 'contestantImages' poprzez dodanie dokumentu placeholder
-    // TODO: dodać w ten sposób listę zdjęć
     await mainDocRef
         .collection('contestantImages')
-        .doc('init') // nazwa dokumentu w subkolekcji - musi być przynajmniej jeden dokument, aby powstała kolekcja
-        .set({});   // pusty dokument
+        .doc('init')
+        .set({});
   }
-
-
 
   void _startTournament(BuildContext context) async {
     if (_contestants.length < 2) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least 2 contestants to start tournament')),
+        const SnackBar(
+            content: Text('Add at least 2 contestants to start tournament')),
       );
       return;
     }
 
-    final bracket = createTournamentBracket(_contestants);
+    await createTournamentBracket(_contestants);
 
-    // json creator(lista kontestantow)
-    // zapisujemy do tournament data
-    // rand id + wysli na server
     final random = Random();
     String id = "";
     for (int i = 0; i < 6; i++) {
@@ -142,7 +95,7 @@ class _TournamentCreatorState extends State<TournamentCreator> {
     }
 
     final docRef = FirebaseFirestore.instance.collection("tournaments").doc(id);
-    final docSnapshot = await docRef.get(); // pobiera dokument
+    final docSnapshot = await docRef.get();
     while (docSnapshot.exists) {
       id = "";
       for (int i = 0; i < 6; i++) {
@@ -154,12 +107,7 @@ class _TournamentCreatorState extends State<TournamentCreator> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        //generate id code
-        // json creator(lista kontestantow)
-        // zapisujemy do tournament data
-        // rand id + wysli na server
         builder: (context) => TournamentLobby(lobbyId: id),
-
       ),
     );
   }
@@ -188,11 +136,13 @@ class _TournamentCreatorState extends State<TournamentCreator> {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.settings_outlined, color: AppColors.purple1),
+                    icon: const Icon(Icons.settings_outlined,
+                        color: AppColors.purple1),
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const TournamentSettings()),
+                        MaterialPageRoute(
+                            builder: (context) => const TournamentSettings()),
                       );
                     },
                   ),
@@ -209,7 +159,8 @@ class _TournamentCreatorState extends State<TournamentCreator> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: _contestants.length + 1,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12.0),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12.0),
                   itemBuilder: (context, index) {
                     if (index == _contestants.length) {
                       return _buildAddContestantButton(context);
@@ -232,7 +183,10 @@ class _TournamentCreatorState extends State<TournamentCreator> {
                   ),
                   child: const Text(
                     'Start tournament',
-                    style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
               ),

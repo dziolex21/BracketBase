@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/tournament_screen.dart';
-import 'package:tournament_app/data/tournament_data.dart' as td;
 
 class TournamentLobby extends StatelessWidget {
   final String lobbyId;
@@ -102,7 +101,7 @@ class TournamentLobby extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) =>  TournamentScreen(bracket: td.sampleBracket)),
+                      MaterialPageRoute(builder: (context) => const TournamentScreen()),
                     );
                   },
                   style: ElevatedButton.styleFrom(

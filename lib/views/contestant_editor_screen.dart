@@ -6,7 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/services/image_converter.dart';
-import 'package:tournament_app/views/tournament_creator.dart';
+import 'package:tournament_app/services/json_creator.dart';
 
 class ContestantEditorScreen extends StatefulWidget {
   final Contestant? contestant;
@@ -150,6 +150,29 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                         ),
                       ),
                     ),
+                    if (widget.contestant != null) ...[
+                      const SizedBox(height: 8.0),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pop('DELETE');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red[700],
+                            padding: const EdgeInsets.symmetric(vertical: 12.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                          ),
+                          icon: const Icon(Icons.delete_outline, color: Colors.white),
+                          label: const Text(
+                            'Delete',
+                            style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ]
                   ],
                 ),
               ),
