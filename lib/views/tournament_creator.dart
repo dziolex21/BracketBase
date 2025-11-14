@@ -154,27 +154,28 @@ class _TournamentCreatorState extends State<TournamentCreator> {
                 ],
               ),
               const SizedBox(height: 24.0),
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: AppColors.purple4,
-                  borderRadius: BorderRadius.circular(16.0),
-                  border: Border.all(color: AppColors.purple2),
-                ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: _contestants.length + 1,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12.0),
-                  itemBuilder: (context, index) {
-                    if (index == _contestants.length) {
-                      return _buildAddContestantButton(context);
-                    }
-                    return _buildContestantTile(context, index);
-                  },
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: AppColors.purple4,
+                    borderRadius: BorderRadius.circular(16.0),
+                    border: Border.all(color: AppColors.purple2),
+                  ),
+                  child: ListView.separated(
+                    itemCount: _contestants.length + 1,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12.0),
+                    itemBuilder: (context, index) {
+                      if (index == _contestants.length) {
+                        return _buildAddContestantButton(context);
+                      }
+                      return _buildContestantTile(context, index);
+                    },
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 24.0),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
