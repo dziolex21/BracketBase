@@ -158,7 +158,7 @@ class _TournamentCreatorState extends State<TournamentCreator> {
         // json creator(lista kontestantow)
         // zapisujemy do tournament data
         // rand id + wysli na server
-        builder: (context) => TournamentLobby(lobbyId: '123456'),
+        builder: (context) => TournamentLobby(lobbyId: id),
 
       ),
     );
