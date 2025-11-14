@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
+
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 class Contestant {
   final String name;
@@ -7,19 +12,21 @@ class Contestant {
   Contestant({required this.name, required this.picture});
 
   Map<String, dynamic> toJson() => {
-    'name': name,
-    'votes': 0,
-  };
+        'name': name,
+        'votes': 0,
+        'picture': picture, // Also include picture in the JSON
+      };
 }
 
 /// Helper function to create an "empty" contestant (placeholder)
 Map<String, dynamic> _emptySlot() => {
-  'name': '', // Empty name, as requested
-  'votes': 0,
-};
+      'name': '', // Empty name, as requested
+      'votes': 0,
+      'picture': '', // Also include picture in the JSON
+    };
 
-Map<String, List<Map<String, dynamic>>> createTournamentBracket(
-    List<Contestant> contestants) {
+Future<Map<String, List<Map<String, dynamic>>>> createTournamentBracket(
+    List<Contestant> contestants) async { // Made async
   int n = contestants.length;
 
   // 1. Find the next power of two (2, 4, 8, 16...)
@@ -37,7 +44,7 @@ Map<String, List<Map<String, dynamic>>> createTournamentBracket(
 
   // 3. Distribute contestants
   List<Map<String, dynamic>> allContestantsJson =
-  contestants.map((c) => c.toJson()).toList();
+      contestants.map((c) => c.toJson()).toList();
 
   // Contestants who get a "bye" are the *last* ones in the list
   List<Map<String, dynamic>> nextRoundByes = [];
@@ -48,7 +55,8 @@ Map<String, List<Map<String, dynamic>>> createTournamentBracket(
     // Take the last `byes` number of contestants for the next round
     nextRoundByes = allContestantsJson.sublist(n - byes); // e.g., [contestant7]
     // The rest play in the first round
-    firstRoundPairs = allContestantsJson.sublist(0, n - byes); // e.g., [6 contestants]
+    firstRoundPairs =
+        allContestantsJson.sublist(0, n - byes); // e.g., [6 contestants]
   } else {
     firstRoundPairs = allContestantsJson;
   }
@@ -92,5 +100,19 @@ Map<String, List<Map<String, dynamic>>> createTournamentBracket(
     }
   }
 
+  // 7. Save the bracket to a temporary JSON file
+  try {
+    final Directory tempDir = await getTemporaryDirectory();
+    final String filePath = p.join(tempDir.path, 'bracket.json');
+    final File jsonFile = File(filePath);
+    // Use an encoder with an indent to make the JSON more readable
+    const JsonEncoder encoder = JsonEncoder.withIndent('  ');
+    final String jsonString = encoder.convert(bracket);
+    await jsonFile.writeAsString(jsonString);
+  } catch (e) {
+    // If saving fails, print an error but don't crash the app
+    print('Error saving bracket to file: $e');
+  }
+  print(bracket);
   return bracket;
 }
