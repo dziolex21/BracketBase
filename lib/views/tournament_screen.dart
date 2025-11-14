@@ -123,11 +123,18 @@ class _TournamentScreenState extends State<TournamentScreen> {
         title: const Text('Tournament'),
         backgroundColor: AppColors.purple3,
       ),
-      body: SingleChildScrollView(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+      body: InteractiveViewer(
+        // Настройки зума
+        boundaryMargin: const EdgeInsets.all(20.0),
+        minScale: 0.1,
+        maxScale: 3.0, // Увеличим maxScale для удобства
+
+        // Включаем встроенную поддержку скролла, если контент больше
+        constrained: false,
+
+        child: Padding( // Добавляем внешний padding
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Row( // Row без SingleChildScrollView (InteractiveViewer сам скроллит)
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               for (int i = 0; i < rounds.length; i++)
@@ -135,8 +142,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: _RoundColumn(
                     roundName: rounds[i],
-                    players:
-                    List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
+                    players: List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
                     totalSlots: totalSlots,
                     roundIndex: i,
                   ),
@@ -248,17 +254,23 @@ class _ContestantCard extends StatelessWidget {
     required this.width,
   });
 
-  // Helper widget for "?"
-  Widget _buildFallback() {
-    return const Center(
-      child: Text('?', style: TextStyle(fontSize: 28, color: Colors.white)),
-    );
-  }
+  // Примечание: _buildFallback теперь определяется внутри build()
 
   @override
   Widget build(BuildContext context) {
-    // Calculate the image size (55% of the card height)
+    // Вычисление динамических размеров шрифта
+    final double dynamicNameFontSize = (height * 0.15).clamp(8.0, 14.0);
     final double imageHeight = height * 0.55;
+    // Размер "?" берем как 50% от высоты картинки
+    final double dynamicFallbackFontSize = (imageHeight * 0.5).clamp(12.0, 28.0);
+
+    Widget _buildFallback() {
+      return Center(
+        child: Text('?', style: TextStyle(fontSize: dynamicFallbackFontSize, color: Colors.white)),
+      );
+    }
+    // ----------------------------------------------------
+
     final double imageWidth = imageHeight;
 
     ImageProvider? backgroundImage;
@@ -271,8 +283,8 @@ class _ContestantCard extends StatelessWidget {
     }
 
     return Container(
-      width: width, // <-- Use width
-      height: height, // <-- Use height
+      width: width,
+      height: height,
       decoration: BoxDecoration(
         color: AppColors.purple3,
         borderRadius: BorderRadius.circular(16),
@@ -292,24 +304,23 @@ class _ContestantCard extends StatelessWidget {
             height: imageHeight,
             width: imageWidth,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(12), // <-- Rounded corners
+              borderRadius: BorderRadius.circular(12),
               child: Container(
-                color: AppColors.purple4, // Background for "?"
+                color: AppColors.purple4,
                 child: (backgroundImage != null)
                     ? Image(
                   image: backgroundImage,
-                  fit: BoxFit.cover, // Fills the rectangle
-                  // Error handler for File/AssetImage
+                  fit: BoxFit.cover,
                   errorBuilder: (_, __, ___) => _buildFallback(),
                 )
                     : _buildFallback(),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 3),
           Text(
             name,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+            style: TextStyle(color: Colors.white, fontSize: dynamicNameFontSize),
             overflow: TextOverflow.ellipsis,
           ),
         ],
