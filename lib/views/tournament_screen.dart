@@ -65,6 +65,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
         appBar: AppBar(
           title: const Text('Loading Tournament...'),
           backgroundColor: AppColors.purple3,
+          automaticallyImplyLeading: false,
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -76,6 +77,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
         appBar: AppBar(
           title: const Text('Error'),
           backgroundColor: AppColors.purple3,
+          automaticallyImplyLeading: false,
         ),
         body: Center(
           child: Padding(
@@ -101,6 +103,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
       appBar: AppBar(
         title: const Text('Tournament'),
         backgroundColor: AppColors.purple3,
+        automaticallyImplyLeading: false,
       ),
       body: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
