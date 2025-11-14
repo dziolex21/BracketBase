@@ -5,6 +5,8 @@ import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/tournament_creator.dart';
 import 'package:tournament_app/views/tournament_lobby.dart';
 
+String enteredId = "";
+
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
 
@@ -23,6 +25,147 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    void showUsernamePopup(BuildContext context) {
+      final TextEditingController usernameController = TextEditingController();
+
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: AppColors.purple4,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (modalContext) {
+          return SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Nagłówek + przycisk zamykania
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Username:',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: () => Navigator.pop(modalContext),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Pole z ID turnieju
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.purple5,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: TextField(
+                        controller: usernameController,
+                        textAlign: TextAlign.center,
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        style: const TextStyle(color: Colors.white),
+                        cursorColor: AppColors.purple1,
+                        decoration: const InputDecoration(
+                          hintText: "Enter your username",
+                          hintStyle: TextStyle(color: Colors.white54),
+                          filled: true,
+                          fillColor: AppColors.purple5,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          border: InputBorder.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Przycisk Join
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        String username = usernameController.text.trim();
+                        if (username.length > 0) {
+                          // Użytkownik wpisuje swoją nazwę, nazwa jest dodawana na serwer, użytkownik jest przenoszony do lobby
+                          final docRef = FirebaseFirestore.instance.collection("tournaments").doc(enteredId);
+
+                          await docRef.update({
+                            'playersList': FieldValue.arrayUnion([username]), // dodaje element do listy
+                          });
+
+                          Navigator.push(
+                              context, 
+                              MaterialPageRoute(builder: (context) => TournamentLobby(lobbyId: enteredId))
+                          );
+                        } else {
+                          Navigator.pop(modalContext); // Close the modal first
+                          ScaffoldMessenger.of(context).showMaterialBanner(
+                            MaterialBanner(
+                              padding: const EdgeInsets.all(16),
+                              content: const Text('Enter a username', style: TextStyle(color: Colors.white)),
+                              backgroundColor: Colors.redAccent,
+                              actions: [
+                                TextButton(
+                                  child: const Text('DISMISS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  onPressed: () => ScaffoldMessenger.of(context)
+                                      .hideCurrentMaterialBanner(),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.purple2,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Join',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+
     void showJoinTournamentPopup(BuildContext context) {
       final TextEditingController idController = TextEditingController();
 
@@ -108,7 +251,7 @@ class HomeScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () async {
-                        final enteredId = idController.text;
+                        enteredId = idController.text;
                         if (enteredId.length == 6) {
                           Navigator.pop(modalContext); // Close the modal
 
@@ -116,19 +259,14 @@ class HomeScreen extends StatelessWidget {
                           final doc = await docRef.get();
   
                           if (doc.exists) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    TournamentLobby(lobbyId: enteredId),
-                              ),
-                            );
+                            // Użytkownik wpisuje swoją nazwę, nazwa jest dodawana na serwer, użytkownik jest przenoszony do lobby
+                            showUsernamePopup(context);
                           } else {
                             Navigator.pop(modalContext); // Close the modal first
                             ScaffoldMessenger.of(context).showMaterialBanner(
                               MaterialBanner(
                                 padding: const EdgeInsets.all(16),
-                                content: const Text('Did not find quiz with such id', style: TextStyle(color: Colors.white)),
+                                content: const Text('Did not find tournament with such id', style: TextStyle(color: Colors.white)),
                                 backgroundColor: Colors.redAccent,
                                 actions: [
                                   TextButton(
@@ -183,6 +321,7 @@ class HomeScreen extends StatelessWidget {
         },
       );
     }
+
 
     return Scaffold(
       appBar: AppBar(
