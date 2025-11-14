@@ -85,7 +85,6 @@ class TournamentLobby extends StatelessWidget {
                     final playersList = List<String>.from(data['playersList']); // zakładamy, że to lista stringów
 
                     return GridView.builder(
-                      physics: const NeverScrollableScrollPhysics(),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         crossAxisSpacing: 16,
