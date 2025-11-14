@@ -3,14 +3,12 @@ import 'dart:math';
 class Contestant {
   final String name;
   final String picture;
-  final int pictureId;
 
-  Contestant({required this.name, required this.picture, required this.pictureId});
+  Contestant({required this.name, required this.picture});
 
   Map<String, dynamic> toJson() => {
     'name': name,
     'votes': 0,
-    'picture_id': pictureId,
   };
 }
 
@@ -18,7 +16,6 @@ class Contestant {
 Map<String, dynamic> _emptySlot() => {
   'name': '', // Empty name, as requested
   'votes': 0,
-  'picture_id': null, // null will be handled correctly by your UI
 };
 
 Map<String, List<Map<String, dynamic>>> createTournamentBracket(

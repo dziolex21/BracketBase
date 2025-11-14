@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/tournament_screen.dart';
-import 'package:tournament_app/data/TournamentData.dart' as td;
+import 'package:tournament_app/data/tournament_data.dart' as td;
 
 class TournamentLobby extends StatelessWidget {
   final String lobbyId;

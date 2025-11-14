@@ -1,5 +1,9 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/services/image_converter.dart';
 import 'package:tournament_app/views/tournament_creator.dart';
@@ -34,11 +38,17 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
-      // TODO: Call the image converter service
-      // final String newImagePath = await ImageConverter.convert(image);
-      // setState(() {
-      //   _imagePath = newImagePath;
-      // });
+      final Uint8List originalBytes = await image.readAsBytes();
+      final Uint8List convertedBytes = await ImageConverter.convert(originalBytes);
+      final tempDir = await getTemporaryDirectory();
+      final String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final filePath = p.join(tempDir.path, fileName);
+      final File imageFile = File(filePath);
+      await imageFile.writeAsBytes(convertedBytes);
+
+      setState(() {
+        _imagePath = filePath;
+      });
     }
   }
 
@@ -52,9 +62,9 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
           icon: const Icon(Icons.arrow_back, color: AppColors.purple1),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
+        title: const Text(
           'Editor',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -91,7 +101,9 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                   children: [
                     Expanded(
                       child: Center(
-                        child: Image.asset(_imagePath),
+                        child: _imagePath.startsWith('assets/')
+                            ? Image.asset(_imagePath)
+                            : Image.file(File(_imagePath)),
                       ),
                     ),
                     const SizedBox(height: 16.0),
