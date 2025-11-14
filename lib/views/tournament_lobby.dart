@@ -98,7 +98,7 @@ class TournamentLobby extends StatelessWidget {
                         final playerName = playersList[index];
                         return Container(
                           decoration: BoxDecoration(
-                            color: AppColors.purple4,
+                            color: index == 0 ? AppColors.purple2 : AppColors.purple4,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Center(
