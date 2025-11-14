@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/services/json_creator.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
+import 'package:tournament_app/views/start_screen.dart';
 import 'package:tournament_app/views/tournament_lobby.dart';
 import 'package:tournament_app/views/tournament_settings.dart';
 
@@ -122,9 +123,14 @@ class _TournamentCreatorState extends State<TournamentCreator> {
           child: Column(
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: AppColors.purple1),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
                   const Text(
                     'Tournament creator',
                     style: TextStyle(
@@ -134,7 +140,6 @@ class _TournamentCreatorState extends State<TournamentCreator> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.settings_outlined,
                         color: AppColors.purple1),
