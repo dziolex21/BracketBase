@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +9,34 @@ import 'package:tournament_app/views/tournament_lobby.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
+
+
+  void clearFirestoreCollection(List<String> exceptions) async {
+    final collectionRef = FirebaseFirestore.instance.collection("tournaments");
+    final querySnapshot = await collectionRef.get();
+
+    WriteBatch batch = FirebaseFirestore.instance.batch();
+    int ops = 0;
+
+    for (var doc in querySnapshot.docs) {
+      if (!exceptions.contains(doc.id)) {
+        batch.delete(doc.reference);
+        ops++;
+
+        // Firestore batch limit = 500
+        if (ops == 450) {
+          await batch.commit();
+          batch = FirebaseFirestore.instance.batch();
+          ops = 0;
+        }
+      }
+    }
+
+    // ostatni batch
+    if (ops > 0) {
+      await batch.commit();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
