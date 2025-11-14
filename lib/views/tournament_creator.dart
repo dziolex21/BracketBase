@@ -66,8 +66,8 @@ class _TournamentCreatorState extends State<TournamentCreator> {
     final mainData = {
       'optionAVotes': 0,
       'optionBVotes': 0,
-      'playersList': [],
-      'roundResult': 0
+      'playersList': ['Host'],
+      'roundResult': 0 // 0 dla opcji A, 1 dla opcji B
     };
 
     await mainDocRef.set(mainData);

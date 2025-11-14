@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/tournament_screen.dart';
@@ -65,34 +66,56 @@ class TournamentLobby extends StatelessWidget {
 
               // Lista użytkowników
               Expanded(
-                child: GridView.builder(
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: 2.8,
-                  ),
-                  itemCount: 8,
-                  itemBuilder: (context, index) {
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.purple4,
-                        borderRadius: BorderRadius.circular(10),
+                child: StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('tournaments')
+                      .doc(lobbyId) // <-- wstaw tutaj nazwę turnieju
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    final data = snapshot.data!.data() as Map<String, dynamic>?;
+
+                    if (data == null || data['playersList'] == null) {
+                      return const Center(child: Text('Brak graczy'));
+                    }
+
+                    final playersList = List<String>.from(data['playersList']); // zakładamy, że to lista stringów
+
+                    return GridView.builder(
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 2.8,
                       ),
-                      child: Center(
-                        child: Text(
-                          'User ${index + 1}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
+                      itemCount: playersList.length,
+                      itemBuilder: (context, index) {
+                        final playerName = playersList[index];
+                        return Container(
+                          decoration: BoxDecoration(
+                            color: index == 0 ? AppColors.purple2 : AppColors.purple4,
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                        ),
-                      ),
+                          child: Center(
+                            child: Text(
+                              playerName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
               ),
+
 
               // Przycisk startu
               SizedBox(
