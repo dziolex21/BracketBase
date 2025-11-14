@@ -1,11 +1,55 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:tournament_app/configs/color_data.dart';
 
-class TournamentScreen extends StatelessWidget {
-  final Map<String, dynamic> bracket;
+class TournamentScreen extends StatefulWidget {
+  const TournamentScreen({super.key});
 
-  const TournamentScreen({super.key, required this.bracket});
+  @override
+  State<TournamentScreen> createState() => _TournamentScreenState();
+}
+
+class _TournamentScreenState extends State<TournamentScreen> {
+  Map<String, dynamic>? _bracket;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBracket();
+  }
+
+  Future<void> _loadBracket() async {
+    try {
+      final Directory tempDir = await getTemporaryDirectory();
+      final String filePath = p.join(tempDir.path, 'bracket.json');
+      final File jsonFile = File(filePath);
+
+      if (await jsonFile.exists()) {
+        final String jsonString = await jsonFile.readAsString();
+        final Map<String, dynamic> loadedBracket = jsonDecode(jsonString);
+        setState(() {
+          _bracket = loadedBracket;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Tournament data not found. Please create a new tournament.';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load tournament data: $e';
+        _isLoading = false;
+      });
+    }
+  }
 
   int _nextPowerOfTwo(int n) {
     int power = 1;
@@ -15,9 +59,41 @@ class TournamentScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.purple5,
+        appBar: AppBar(
+          title: const Text('Loading Tournament...'),
+          backgroundColor: AppColors.purple3,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: AppColors.purple5,
+        appBar: AppBar(
+          title: const Text('Error'),
+          backgroundColor: AppColors.purple3,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              _error!,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final bracket = _bracket!;
     final rounds = bracket.keys.toList();
     final firstRoundPlayers =
-    List<Map<String, dynamic>>.from(bracket[rounds.first] ?? []);
+        List<Map<String, dynamic>>.from(bracket[rounds.first] ?? []);
     final totalSlots = _nextPowerOfTwo(max(1, firstRoundPlayers.length));
 
     return Scaffold(
@@ -32,15 +108,15 @@ class TournamentScreen extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (int i = 0; i < rounds.length; i++) // i represents the round index: 0, 1, 2...
+            for (int i = 0; i < rounds.length; i++)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _RoundColumn(
                   roundName: rounds[i],
                   players:
-                  List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
-                  totalSlots: totalSlots, // This is the TOTAL number of slots in the first round (e.g., 4, 8, 16...).
-                  roundIndex: i, // The index of the current round.
+                      List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
+                  totalSlots: totalSlots,
+                  roundIndex: i,
                 ),
               ),
           ],
@@ -53,8 +129,8 @@ class TournamentScreen extends StatelessWidget {
 class _RoundColumn extends StatelessWidget {
   final String roundName;
   final List<Map<String, dynamic>> players;
-  final int totalSlots; // Total slots in the first round (e.g., 4, 8, 16).
-  final int roundIndex; // The index of this round (0, 1, 2...).
+  final int totalSlots;
+  final int roundIndex;
 
   const _RoundColumn({
     required this.roundName,
@@ -68,24 +144,12 @@ class _RoundColumn extends StatelessWidget {
     const double totalHeight = 800;
     const double cardHeight = 80;
 
-    // --- CORE LOGIC FOR DYNAMIC BRACKET SPACING ---
-    // Calculate the number of slots for THIS specific round.
-    // The number of slots halves with each subsequent round.
-    // Round 0: totalSlots / 2^0 = totalSlots (e.g., 8)
-    // Round 1: totalSlots / 2^1 = totalSlots / 2 (e.g., 4)
-    // Round 2: totalSlots / 2^2 = totalSlots / 4 (e.g., 2)
     final int slotsInThisRound = (totalSlots / pow(2, roundIndex)).ceil();
 
-    // Generate vertical positions (as fractions of totalHeight) based on the number of slots in THIS round.
-    // This centers each card within its designated vertical slice of the column.
     List<double> positions = List.generate(
-      slotsInThisRound, // Use the calculated slots for this round.
-          (i) => (i * 2 + 1) / (2 * slotsInThisRound), // The formula for calculating center points.
+      slotsInThisRound,
+      (i) => (i * 2 + 1) / (2 * slotsInThisRound),
     );
-    // For 4 slots, positions are: [1/8, 3/8, 5/8, 7/8]
-    // For 2 slots, positions are: [1/4, 3/4]
-    // For 1 slot, position is:    [1/2]
-    // ----------------------------------------------------
 
     return SizedBox(
       width: 150,
@@ -108,25 +172,22 @@ class _RoundColumn extends StatelessWidget {
               ),
             ),
           ),
-          // Iterate up to the number of slots in this round to create placeholders for matchups.
           for (int i = 0; i < slotsInThisRound; i++)
             Positioned(
               top: totalHeight * positions[i] - cardHeight / 2,
               left: 0,
               right: 0,
-              child: (i < players.length) // If a player exists for this slot, show their card.
+              child: (i < players.length && players[i]['name'].isNotEmpty)
                   ? _ContestantCard(
-                name: players[i]['name'] ?? '???',
-                pictureId: (players[i]['picture_id'] is int)
-                    ? players[i]['picture_id']
-                    : 0,
-                height: cardHeight,
-              )
-                  : const Opacity( // Otherwise, show an invisible placeholder to maintain spacing.
-                opacity: 0.0,
-                child: _ContestantCard(
-                    name: 'empty', pictureId: 0, height: cardHeight),
-              ),
+                      name: players[i]['name'] ?? '???',
+                      picture: players[i]['picture'] ?? '',
+                      height: cardHeight,
+                    )
+                  : const Opacity(
+                      opacity: 0.0,
+                      child: _ContestantCard(
+                          name: 'empty', picture: '', height: cardHeight),
+                    ),
             ),
         ],
       ),
@@ -136,18 +197,27 @@ class _RoundColumn extends StatelessWidget {
 
 class _ContestantCard extends StatelessWidget {
   final String name;
-  final int pictureId;
+  final String picture;
   final double height;
 
   const _ContestantCard({
     required this.name,
-    required this.pictureId,
+    required this.picture,
     required this.height,
   });
 
   @override
   Widget build(BuildContext context) {
     final double avatarRadius = height * 0.25;
+
+    ImageProvider? backgroundImage;
+    if (picture.isNotEmpty) {
+      if (picture.startsWith('assets/')) {
+        backgroundImage = AssetImage(picture);
+      } else {
+        backgroundImage = FileImage(File(picture));
+      }
+    }
 
     return Container(
       width: 120,
@@ -170,13 +240,11 @@ class _ContestantCard extends StatelessWidget {
           CircleAvatar(
             radius: avatarRadius,
             backgroundColor: AppColors.purple4,
-            backgroundImage: (pictureId > 0)
-                ? AssetImage('assets/pic$pictureId.jpg')
-                : null,
+            backgroundImage: backgroundImage,
             onBackgroundImageError: (_, __) {},
-            child: (pictureId > 0)
-                ? null
-                : const Text('?', style: TextStyle(fontSize: 28, color: Colors.white)),
+            child: (backgroundImage == null)
+                ? const Text('?', style: TextStyle(fontSize: 28, color: Colors.white))
+                : null,
           ),
           const SizedBox(height: 8),
           Text(
