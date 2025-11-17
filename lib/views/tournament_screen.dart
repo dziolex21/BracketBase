@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:tournament_app/configs/color_data.dart';
+import 'package:tournament_app/views/voting_screen.dart';
 
 class TournamentScreen extends StatefulWidget {
-  const TournamentScreen({super.key});
+  final bool isHost;
+  const TournamentScreen({super.key, this.isHost = false});
 
   @override
   State<TournamentScreen> createState() => _TournamentScreenState();
@@ -128,33 +130,66 @@ class _TournamentScreenState extends State<TournamentScreen> {
           backgroundColor: AppColors.purple3,
           automaticallyImplyLeading: false,
         ),
-        body: InteractiveViewer(
-          // Настройки зума
-          boundaryMargin: const EdgeInsets.all(20.0),
-          minScale: 0.1,
-          maxScale: 3.0, // Увеличим maxScale для удобства
-
-          // Включаем встроенную поддержку скролла, если контент больше
-          constrained: false,
-
-          child: Padding( // Добавляем внешний padding
-            padding: const EdgeInsets.all(16),
-            child: Row( // Row без SingleChildScrollView (InteractiveViewer сам скроллит)
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (int i = 0; i < rounds.length; i++)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 16, right:16, top:0,bottom: 16),
-                    child: _RoundColumn(
-                      roundName: rounds[i],
-                      players: List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
-                      totalSlots: totalSlots,
-                      roundIndex: i,
+        body: Column(
+          children: [
+            Expanded(
+              child: InteractiveViewer(
+                boundaryMargin: const EdgeInsets.all(20.0),
+                minScale: 0.1,
+                maxScale: 3.0,
+                constrained: false,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (int i = 0; i < rounds.length; i++)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16, right:16, top:0,bottom: 16),
+                          child: _RoundColumn(
+                            roundName: rounds[i],
+                            players: List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
+                            totalSlots: totalSlots,
+                            roundIndex: i,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Visibility(
+              visible: widget.isHost,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const VoteScreen()),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.purple1,
+                      padding: const EdgeInsets.symmetric(vertical: 16.0),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.0),
+                      ),
+                    ),
+                    child: const Text(
+                      'Go to Voting',
+                      style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold),
                     ),
                   ),
-              ],
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
