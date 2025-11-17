@@ -9,7 +9,8 @@ import 'package:tournament_app/views/voting_screen.dart';
 
 class TournamentScreen extends StatefulWidget {
   final bool isHost;
-  const TournamentScreen({super.key, this.isHost = false});
+  final String tournamentId;
+  const TournamentScreen({super.key, this.isHost = false, this.tournamentId = ""});
 
   @override
   State<TournamentScreen> createState() => _TournamentScreenState();
@@ -168,7 +169,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const VoteScreen()),
+                        MaterialPageRoute(builder: (context) => VoteScreen(gameId: widget.tournamentId,)),
                       );
                     },
                     style: ElevatedButton.styleFrom(
