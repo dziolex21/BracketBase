@@ -119,38 +119,41 @@ class _TournamentScreenState extends State<TournamentScreen> {
 
 
 
-    return Scaffold(
-      backgroundColor: AppColors.purple5,
-      appBar: AppBar(
-        title: const Text('Tournament'),
-        backgroundColor: AppColors.purple3,
-        automaticallyImplyLeading: false,
-      ),
-      body: InteractiveViewer(
-        // Настройки зума
-        boundaryMargin: const EdgeInsets.all(20.0),
-        minScale: 0.1,
-        maxScale: 3.0, // Увеличим maxScale для удобства
+    return WillPopScope(
+      onWillPop: () async => false,
+      child: Scaffold(
+        backgroundColor: AppColors.purple5,
+        appBar: AppBar(
+          title: const Text('Tournament'),
+          backgroundColor: AppColors.purple3,
+          automaticallyImplyLeading: false,
+        ),
+        body: InteractiveViewer(
+          // Настройки зума
+          boundaryMargin: const EdgeInsets.all(20.0),
+          minScale: 0.1,
+          maxScale: 3.0, // Увеличим maxScale для удобства
 
-        // Включаем встроенную поддержку скролла, если контент больше
-        constrained: false,
+          // Включаем встроенную поддержку скролла, если контент больше
+          constrained: false,
 
-        child: Padding( // Добавляем внешний padding
-          padding: const EdgeInsets.only(left: 16, right:16, top:0,bottom: 16),
-          child: Row( // Row без SingleChildScrollView (InteractiveViewer сам скроллит)
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int i = 0; i < rounds.length; i++)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _RoundColumn(
-                    roundName: rounds[i],
-                    players: List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
-                    totalSlots: totalSlots,
-                    roundIndex: i,
+          child: Padding( // Добавляем внешний padding
+            padding: const EdgeInsets.all(16),
+            child: Row( // Row без SingleChildScrollView (InteractiveViewer сам скроллит)
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (int i = 0; i < rounds.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _RoundColumn(
+                      roundName: rounds[i],
+                      players: List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
+                      totalSlots: totalSlots,
+                      roundIndex: i,
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -174,7 +177,7 @@ class _RoundColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const double totalHeight = 800; // Total "canvas" for positioning
-    const double titleTopPadding = 1;
+    const double titleTopPadding = 10;
     const double cardsTopOffset = 40;
 
     final int slotsInThisRound = (totalSlots / pow(2, roundIndex)).ceil();
@@ -208,20 +211,13 @@ class _RoundColumn extends StatelessWidget {
             top: titleTopPadding,
             left: 0,
             right: 0,
-            child: Container(
-              padding: const EdgeInsets.only(left: 12, right:12, top:2,bottom: 6),
-              decoration: BoxDecoration(
-                color: AppColors.purple4,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  roundName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
+            child: Center(
+              child: Text(
+                roundName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
                 ),
               ),
             ),
