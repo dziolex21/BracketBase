@@ -136,7 +136,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
         constrained: false,
 
         child: Padding( // Добавляем внешний padding
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.only(left: 16, right:16, top:0,bottom: 16),
           child: Row( // Row без SingleChildScrollView (InteractiveViewer сам скроллит)
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -174,7 +174,7 @@ class _RoundColumn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const double totalHeight = 800; // Total "canvas" for positioning
-    const double titleTopPadding = 10;
+    const double titleTopPadding = 1;
     const double cardsTopOffset = 40;
 
     final int slotsInThisRound = (totalSlots / pow(2, roundIndex)).ceil();
@@ -208,13 +208,20 @@ class _RoundColumn extends StatelessWidget {
             top: titleTopPadding,
             left: 0,
             right: 0,
-            child: Center(
-              child: Text(
-                roundName,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+            child: Container(
+              padding: const EdgeInsets.only(left: 12, right:12, top:2,bottom: 6),
+              decoration: BoxDecoration(
+                color: AppColors.purple4,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  roundName,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
