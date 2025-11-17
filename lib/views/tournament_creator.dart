@@ -1,6 +1,15 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:tournament_app/configs/color_data.dart';
+import 'package:tournament_app/services/json_creator.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
+import 'package:tournament_app/views/start_screen.dart';
+import 'package:tournament_app/views/tournament_lobby.dart';
 import 'package:tournament_app/views/tournament_settings.dart';
 
 class TournamentCreator extends StatefulWidget {
@@ -11,24 +20,27 @@ class TournamentCreator extends StatefulWidget {
 }
 
 class _TournamentCreatorState extends State<TournamentCreator> {
-  final List<String> _contestants = [
-    'Contestant_1',
-    'Contestant_2',
-    'Contestant_3',
-  ];
+  final List<Contestant> _contestants = [];
 
   void _navigateAndEditContestant(BuildContext context, int index) async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ContestantEditorScreen(contestantName: _contestants[index]),
+        builder: (context) =>
+            ContestantEditorScreen(contestant: _contestants[index]),
       ),
     );
 
-    if (result != null && result is String && result.isNotEmpty) {
-      setState(() {
-        _contestants[index] = result;
-      });
+    if (result != null) {
+      if (result == 'DELETE') {
+        setState(() {
+          _contestants.removeAt(index);
+        });
+      } else if (result is Contestant) {
+        setState(() {
+          _contestants[index] = result;
+        });
+      }
     }
   }
 
@@ -40,11 +52,65 @@ class _TournamentCreatorState extends State<TournamentCreator> {
       ),
     );
 
-    if (result != null && result is String && result.isNotEmpty) {
+    if (result != null && result is Contestant) {
       setState(() {
         _contestants.add(result);
       });
     }
+  }
+
+  void createTournamentOnServer(String id) async {
+    final mainDocRef =
+        FirebaseFirestore.instance.collection('tournaments').doc(id);
+
+    final mainData = {
+      'optionAVotes': 0,
+      'optionBVotes': 0,
+      'playersList': [],
+      'roundResult': 0
+    };
+
+    await mainDocRef.set(mainData);
+
+    await mainDocRef
+        .collection('contestantImages')
+        .doc('init')
+        .set({});
+  }
+
+  void _startTournament(BuildContext context) async {
+    if (_contestants.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Add at least 2 contestants to start tournament')),
+      );
+      return;
+    }
+
+    await createTournamentBracket(_contestants);
+
+    final random = Random();
+    String id = "";
+    for (int i = 0; i < 6; i++) {
+      id += random.nextInt(10).toString();
+    }
+
+    final docRef = FirebaseFirestore.instance.collection("tournaments").doc(id);
+    final docSnapshot = await docRef.get();
+    while (docSnapshot.exists) {
+      id = "";
+      for (int i = 0; i < 6; i++) {
+        id += random.nextInt(10).toString();
+      }
+    }
+    createTournamentOnServer(id);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TournamentLobby(lobbyId: id, isHost: true),
+      ),
+    );
   }
 
   @override
@@ -57,9 +123,14 @@ class _TournamentCreatorState extends State<TournamentCreator> {
           child: Column(
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: AppColors.purple1),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
                   const Text(
                     'Tournament creator',
                     style: TextStyle(
@@ -69,43 +140,46 @@ class _TournamentCreatorState extends State<TournamentCreator> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.settings_outlined, color: AppColors.purple1),
+                    icon: const Icon(Icons.settings_outlined,
+                        color: AppColors.purple1),
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const TournamentSettings()),
+                        MaterialPageRoute(
+                            builder: (context) => const TournamentSettings()),
                       );
                     },
                   ),
                 ],
               ),
               const SizedBox(height: 24.0),
-              Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: AppColors.purple4,
-                  borderRadius: BorderRadius.circular(16.0),
-                  border: Border.all(color: AppColors.purple2),
-                ),
-                child: ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: _contestants.length + 1, // +1 for the add button
-                  separatorBuilder: (context, index) => const SizedBox(height: 12.0),
-                  itemBuilder: (context, index) {
-                    if (index == _contestants.length) {
-                      return _buildAddContestantButton(context);
-                    }
-                    return _buildContestantTile(context, index);
-                  },
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(16.0),
+                  decoration: BoxDecoration(
+                    color: AppColors.purple4,
+                    borderRadius: BorderRadius.circular(16.0),
+                    border: Border.all(color: AppColors.purple2),
+                  ),
+                  child: ListView.separated(
+                    itemCount: _contestants.length + 1,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12.0),
+                    itemBuilder: (context, index) {
+                      if (index == _contestants.length) {
+                        return _buildAddContestantButton(context);
+                      }
+                      return _buildContestantTile(context, index);
+                    },
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(height: 24.0),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () => _startTournament(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.purple1,
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -115,7 +189,10 @@ class _TournamentCreatorState extends State<TournamentCreator> {
                   ),
                   child: const Text(
                     'Start tournament',
-                    style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -139,7 +216,7 @@ class _TournamentCreatorState extends State<TournamentCreator> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              _contestants[index],
+              _contestants[index].name,
               style: const TextStyle(color: Colors.white, fontSize: 16),
             ),
             const Icon(Icons.edit_outlined, color: Colors.white, size: 22),

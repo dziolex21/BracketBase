@@ -1,10 +1,42 @@
+import 'dart:ffi';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/tournament_creator.dart';
 import 'package:tournament_app/views/tournament_lobby.dart';
 
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
+
+
+  void clearFirestoreCollection(List<String> exceptions) async {
+    final collectionRef = FirebaseFirestore.instance.collection("tournaments");
+    final querySnapshot = await collectionRef.get();
+
+    WriteBatch batch = FirebaseFirestore.instance.batch();
+    int ops = 0;
+
+    for (var doc in querySnapshot.docs) {
+      if (!exceptions.contains(doc.id)) {
+        batch.delete(doc.reference);
+        ops++;
+
+        // Firestore batch limit = 500
+        if (ops == 450) {
+          await batch.commit();
+          batch = FirebaseFirestore.instance.batch();
+          ops = 0;
+        }
+      }
+    }
+
+    // ostatni batch
+    if (ops > 0) {
+      await batch.commit();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,115 +53,174 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    void _showJoinTournamentPopup(BuildContext context) {
+    void showJoinTournamentPopup(BuildContext context) {
+      final TextEditingController idController = TextEditingController();
+
       showModalBottomSheet(
         context: context,
         backgroundColor: AppColors.purple4,
+        isScrollControlled: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
-        builder: (context) {
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Nagłówek + przycisk zamykania
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Tournament ID:',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+        builder: (modalContext) {
+          return SingleChildScrollView(
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 16,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Nagłówek + przycisk zamykania
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Tournament ID:',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white70),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: () => Navigator.pop(modalContext),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
 
-                // Pole z ID turnieju (na razie statyczne)
-                Container(
-                  width: double.infinity,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: AppColors.purple5,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Center(
-                    child: TextField(
-                      textAlign: TextAlign.center,
-                      keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white),
-                      cursorColor: AppColors.purple1,
-                      decoration: InputDecoration(
-                        hintText: "Enter tournament ID",
-                        hintStyle: const TextStyle(color: Colors.white54),
-                        filled: true,
-                        fillColor: AppColors.purple5,
-                        contentPadding:
-                        EdgeInsets.symmetric(horizontal: 16, vertical: 14)
+                  // Pole z ID turnieju
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.purple5,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(
+                      child: TextField(
+                        controller: idController,
+                        textAlign: TextAlign.center,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(6),
+                        ],
+                        style: const TextStyle(color: Colors.white),
+                        cursorColor: AppColors.purple1,
+                        decoration: const InputDecoration(
+                          hintText: "Enter tournament ID",
+                          hintStyle: TextStyle(color: Colors.white54),
+                          filled: true,
+                          fillColor: AppColors.purple5,
+                          contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                          ),
+                          border: InputBorder.none,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // Przycisk Join
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const TournamentLobby()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.purple2,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  // Przycisk Join
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final enteredId = idController.text;
+                        if (enteredId.length == 6) {
+                          Navigator.pop(modalContext); // Close the modal
+
+                          final docRef = FirebaseFirestore.instance.collection('tournaments').doc(enteredId);
+                          final doc = await docRef.get();
+  
+                          if (doc.exists) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    TournamentLobby(lobbyId: enteredId),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showMaterialBanner(
+                              MaterialBanner(
+                                padding: const EdgeInsets.all(16),
+                                content: const Text('Did not find tournament with such id', style: TextStyle(color: Colors.white)),
+                                backgroundColor: Colors.redAccent,
+                                actions: [
+                                  TextButton(
+                                    child: const Text('DISMISS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                    onPressed: () => ScaffoldMessenger.of(context)
+                                        .hideCurrentMaterialBanner(),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        } else {
+                           ScaffoldMessenger.of(context).showMaterialBanner(
+                            MaterialBanner(
+                              padding: const EdgeInsets.all(16),
+                              content: const Text('Please enter a valid 6-digit ID.', style: TextStyle(color: Colors.white)),
+                              backgroundColor: Colors.redAccent,
+                              actions: [
+                                TextButton(
+                                  child: const Text('DISMISS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                  onPressed: () => ScaffoldMessenger.of(context)
+                                      .hideCurrentMaterialBanner(),
+                                ),
+                              ],
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.purple2,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                    ),
-                    child: const Text(
-                      'Join',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                      child: const Text(
+                        'Join',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 10),
-              ],
+                  const SizedBox(height: 10),
+                ],
+              ),
             ),
           );
         },
       );
     }
 
+
     return Scaffold(
-      // --- POCZĄTEK ZMIAN ---
-      // 1. Przywracamy AppBar
       appBar: AppBar(
-        // 2. Ustawiamy tło AppBar na całą szerokość
         backgroundColor: AppColors.purple3,
-        // 3. Wstawiamy kontener "App Name" jako tytuł
-        title: Center( // Używamy Center, aby wyśrodkować nasz niestandardowy tytuł
+        title: Center(
           child: Container(
             height: 100,
             width: 380,
             decoration: BoxDecoration(
-              // Tło kontenera jest takie samo jak tło AppBar, tworząc jednolity wygląd
               color: AppColors.purple1,
               borderRadius: BorderRadius.circular(24),
               border: Border.all(color: Colors.black, width: 3),
@@ -146,40 +237,34 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ),
-        // Ustawiamy preferowaną wysokość AppBar, aby zmieścić nasz kontener
         toolbarHeight: 220,
-        // Dodajemy cień dla lepszego oddzielenia od reszty ekranu
         elevation: 8.0,
       ),
-      // --- KONIEC ZMIAN ---
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 30),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            // Usuwamy stary kontener "App Name" i odstęp z body
             const SizedBox(height: 50),
-            // Przyciski menu pozostają bez zmian
             _buildMenuButton(
               context,
               'Create tournament',
-                AppColors.purple4,
-                  () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TournamentCreator(),
-                      ),
-                    );
-                  },
+              AppColors.purple4,
+              () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TournamentCreator(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 30),
             _buildMenuButton(
-              context,
-              'Join tournament',
+                context,
+                'Join tournament',
                 AppColors.purple4,
-                () => _showJoinTournamentPopup(context)
-            ),
+                () => showJoinTournamentPopup(context)),
           ],
         ),
       ),

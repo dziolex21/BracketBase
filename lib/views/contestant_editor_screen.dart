@@ -1,10 +1,17 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:tournament_app/configs/color_data.dart';
+import 'package:tournament_app/services/image_converter.dart';
+import 'package:tournament_app/services/json_creator.dart';
 
 class ContestantEditorScreen extends StatefulWidget {
-  final String? contestantName;
+  final Contestant? contestant;
 
-  const ContestantEditorScreen({super.key, this.contestantName});
+  const ContestantEditorScreen({super.key, this.contestant});
 
   @override
   State<ContestantEditorScreen> createState() => _ContestantEditorScreenState();
@@ -12,17 +19,37 @@ class ContestantEditorScreen extends StatefulWidget {
 
 class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
   late final TextEditingController _nameController;
+  late String _imagePath;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.contestantName);
+    _nameController = TextEditingController(text: widget.contestant?.name);
+    _imagePath = widget.contestant?.picture ?? 'assets/placeholder_image.png';
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      final Uint8List originalBytes = await image.readAsBytes();
+      final Uint8List convertedBytes = await ImageConverter.convert(originalBytes);
+      final tempDir = await getTemporaryDirectory();
+      final String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final filePath = p.join(tempDir.path, fileName);
+      final File imageFile = File(filePath);
+      await imageFile.writeAsBytes(convertedBytes);
+
+      setState(() {
+        _imagePath = filePath;
+      });
+    }
   }
 
   @override
@@ -35,9 +62,9 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
           icon: const Icon(Icons.arrow_back, color: AppColors.purple1),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
+        title: const Text(
           'Editor',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -74,16 +101,16 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                   children: [
                     Expanded(
                       child: Center(
-                        child: Image.asset('assets/placeholder_image.png'),
+                        child: _imagePath.startsWith('assets/')
+                            ? Image.asset(_imagePath)
+                            : Image.file(File(_imagePath)),
                       ),
                     ),
                     const SizedBox(height: 16.0),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          // TODO: Implement image change functionality
-                        },
+                        onPressed: _pickImage,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.purple3,
                           padding: const EdgeInsets.symmetric(vertical: 12.0),
@@ -103,7 +130,12 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.of(context).pop(_nameController.text);
+                          if (_nameController.text.isNotEmpty) {
+                            Navigator.of(context).pop(Contestant(
+                              name: _nameController.text,
+                              picture: _imagePath,
+                            ));
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.purple1,
@@ -118,6 +150,29 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                         ),
                       ),
                     ),
+                    if (widget.contestant != null) ...[
+                      const SizedBox(height: 8.0),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(context).pop('DELETE');
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red[700],
+                            padding: const EdgeInsets.symmetric(vertical: 12.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                          ),
+                          icon: const Icon(Icons.delete_outline, color: Colors.white),
+                          label: const Text(
+                            'Delete',
+                            style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ]
                   ],
                 ),
               ),

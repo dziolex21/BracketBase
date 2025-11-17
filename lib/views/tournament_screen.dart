@@ -1,11 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
-
-class Contestant {
-  final String name;
-  final String? picture;
-
-  Contestant({required this.name, this.picture});
-}
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+import 'package:tournament_app/configs/color_data.dart';
 
 class TournamentScreen extends StatefulWidget {
   const TournamentScreen({super.key});
@@ -15,166 +14,320 @@ class TournamentScreen extends StatefulWidget {
 }
 
 class _TournamentScreenState extends State<TournamentScreen> {
-  // Mock contestants for testing locally
-  final List<Contestant> contestants = [
-    Contestant(name: 'Misato', picture: null),
-    Contestant(name: 'Rei', picture: null),
-    Contestant(name: 'Asuka', picture: null),
-    Contestant(name: 'Shinji', picture: null),
-    Contestant(name: 'Ritsuko', picture: null),
-    Contestant(name: 'eva01', picture: null),
-    Contestant(name: 'eva02', picture: null),
-  ];
+  Map<String, dynamic>? _bracket;
+  bool _isLoading = true;
+  String? _error;
 
-  Contestant? semiFinalWinner1;
-  Contestant? semiFinalWinner2;
+  @override
+  void initState() {
+    super.initState();
+    _loadBracket();
+  }
+
+  Future<void> _loadBracket() async {
+    try {
+      final Directory tempDir = await getTemporaryDirectory();
+      final String filePath = p.join(tempDir.path, 'bracket.json');
+      final File jsonFile = File(filePath);
+
+      if (await jsonFile.exists()) {
+        final String jsonString = await jsonFile.readAsString();
+        final Map<String, dynamic> loadedBracket = jsonDecode(jsonString);
+        setState(() {
+          _bracket = loadedBracket;
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _error = 'Tournament data not found. Please create a new tournament.';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to load tournament data: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  int _nextPowerOfTwo(int n) {
+    int power = 1;
+    while (power < n) power <<= 1;
+    return power;
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.purple5,
+        appBar: AppBar(
+          title: const Text('Loading Tournament...'),
+          backgroundColor: AppColors.purple3,
+          automaticallyImplyLeading: false,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: AppColors.purple5,
+        appBar: AppBar(
+          title: const Text('Error'),
+          backgroundColor: AppColors.purple3,
+          automaticallyImplyLeading: false,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              _error!,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final bracket = _bracket!;
+    final rounds = bracket.keys.toList();
+    final firstRoundPlayers =
+    List<Map<String, dynamic>>.from(bracket[rounds.first] ?? []);
+
+    // Count the total number of contestants
+    int totalContestants = firstRoundPlayers.length;
+
+    // If there is a 2nd round, look for byes in it
+    if (rounds.length > 1) {
+      final List<Map<String, dynamic>> secondRoundSlots =
+      List<Map<String, dynamic>>.from(bracket[rounds[1]] ?? []);
+
+      // "Byes" are participants in the 2nd round with a non-empty name
+      final int byes = secondRoundSlots
+          .where((player) =>
+      player['name'] != null && (player['name'] as String).isNotEmpty)
+          .length;
+
+      totalContestants += byes;
+    }
+
+    // totalSlots is the "next power of two" of the TOTAL number of contestants
+    final totalSlots = _nextPowerOfTwo(max(1, totalContestants));
+
+
+
     return Scaffold(
-      backgroundColor: const Color(0xFF4A2674),
+      backgroundColor: AppColors.purple5,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF2E1A47),
-        title: const Text(
-          "Tournament",
-          style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
+        title: const Text('Tournament'),
+        backgroundColor: AppColors.purple3,
+        automaticallyImplyLeading: false,
       ),
-      body: Column(
+      body: InteractiveViewer(
+        // Настройки зума
+        boundaryMargin: const EdgeInsets.all(20.0),
+        minScale: 0.1,
+        maxScale: 3.0, // Увеличим maxScale для удобства
+
+        // Включаем встроенную поддержку скролла, если контент больше
+        constrained: false,
+
+        child: Padding( // Добавляем внешний padding
+          padding: const EdgeInsets.all(16),
+          child: Row( // Row без SingleChildScrollView (InteractiveViewer сам скроллит)
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 0; i < rounds.length; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: _RoundColumn(
+                    roundName: rounds[i],
+                    players: List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
+                    totalSlots: totalSlots,
+                    roundIndex: i,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RoundColumn extends StatelessWidget {
+  final String roundName;
+  final List<Map<String, dynamic>> players;
+  final int totalSlots;
+  final int roundIndex;
+
+  const _RoundColumn({
+    required this.roundName,
+    required this.players,
+    required this.totalSlots,
+    required this.roundIndex,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const double totalHeight = 800; // Total "canvas" for positioning
+    const double titleTopPadding = 10;
+    const double cardsTopOffset = 40;
+
+    final int slotsInThisRound = (totalSlots / pow(2, roundIndex)).ceil();
+
+    // 1. Calculate how much space is available for 1 slot
+    final double availableSpacePerSlot =
+        (totalHeight - cardsTopOffset) / slotsInThisRound;
+
+    // 2. Calculate the card height (85% of the space) to have some padding
+    final double calculatedCardHeight = availableSpacePerSlot * 0.85;
+
+    // 3. Limit: not less than 30px (for 1/32) and not more than 100px (for 1/2)
+    final double finalCardHeight = calculatedCardHeight.clamp(30.0, 100.0);
+
+    // Card width is now dependent on the card height (with a 1.5 ratio)
+    // It also has min/max limits to avoid being too thin or too wide
+    final double cardWidth = (finalCardHeight * 1.5).clamp(80.0, 150.0);
+
+    final List<double> positions = List.generate(
+      slotsInThisRound,
+          (i) => (i * 2 + 1) / (2 * slotsInThisRound),
+    );
+
+    return SizedBox(
+      width: cardWidth,
+      height: totalHeight,
+      child: Stack( // Use a variable
+        clipBehavior: Clip.none,
         children: [
-          const SizedBox(height: 16),
-          _buildStageSelector(),
-          const SizedBox(height: 8),
-          Expanded(
+          Positioned(
+            top: titleTopPadding,
+            left: 0,
+            right: 0,
             child: Center(
-              child: _buildBracket(),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20.0),
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Text(
+                roundName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
-              onPressed: () {},
-              child: const Text("Continue", style: TextStyle(color: Colors.white, fontSize: 18)),
             ),
           ),
+          for (int i = 0; i < slotsInThisRound; i++)
+            Positioned(
+              top: (totalHeight * positions[i] - finalCardHeight / 2) + cardsTopOffset,
+              left: 0,
+              right: 0,
+              child: (i < players.length)
+                  ? _ContestantCard(
+                name: players[i]['name'] ?? '???',
+                picture: players[i]['picture'] ?? '',
+                // Pass dynamic height and fixed width
+                height: finalCardHeight,
+                width: cardWidth,
+              )
+                  : Opacity(
+                opacity: 0.0,
+                child: _ContestantCard(
+                    name: 'empty', picture: '', height: finalCardHeight, width: cardWidth),
+              ),
+            ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildStageSelector() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _stageChip("1/16", false),
-        _stageChip("1/8", false),
-        _stageChip("1/4", false),
-        _stageChip("Final", true),
-      ],
-    );
-  }
+class _ContestantCard extends StatelessWidget {
+  final String name;
+  final String picture;
+  final double height;
+  final double width;
 
-  Widget _stageChip(String text, bool selected) {
+  const _ContestantCard({
+    required this.name,
+    required this.picture,
+    required this.height,
+    required this.width,
+  });
+
+  // Примечание: _buildFallback теперь определяется внутри build()
+
+  @override
+  Widget build(BuildContext context) {
+    // Вычисление динамических размеров шрифта
+    final double dynamicNameFontSize = (height * 0.15).clamp(8.0, 14.0);
+    final double imageHeight = height * 0.55;
+    // Размер "?" берем как 50% от высоты картинки
+    final double dynamicFallbackFontSize = (imageHeight * 0.5).clamp(12.0, 28.0);
+
+    Widget _buildFallback() {
+      return Center(
+        child: Text('?', style: TextStyle(fontSize: dynamicFallbackFontSize, color: Colors.white)),
+      );
+    }
+    // ----------------------------------------------------
+
+    final double imageWidth = imageHeight;
+
+    ImageProvider? backgroundImage;
+    if (picture.isNotEmpty) {
+      if (picture.startsWith('assets/')) {
+        backgroundImage = AssetImage(picture);
+      } else {
+        backgroundImage = FileImage(File(picture));
+      }
+    }
+
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      width: width,
+      height: height,
       decoration: BoxDecoration(
-        color: selected ? Colors.black : Colors.purple.shade700,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: selected ? Colors.white : Colors.white70,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBracket() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildRound([
-            contestants[0],
-            contestants[1],
-            contestants[2],
-            contestants[3],
-            contestants[4],
-            contestants[5],
-            contestants[6],
-          ]),
-          const SizedBox(width: 40),
-          _buildRound([
-            contestants[1],
-            contestants[4],
-            contestants[2],
-            contestants[5],
-          ]),
-          const SizedBox(width: 40),
-          _buildFinal(),
+        color: AppColors.purple3,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.purple1, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.purple2.withOpacity(0.4),
+            blurRadius: 8,
+            offset: const Offset(2, 4),
+          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildRound(List<Contestant> roundContestants) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: roundContestants.map((c) => _contestantCard(c)).toList(),
-    );
-  }
-
-  Widget _contestantCard(Contestant c) {
-    return Container(
-      width: 100,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        color: Colors.purple.shade300,
-        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            height: 60,
-            width: 60,
-            decoration: BoxDecoration(
-              color: Colors.purple.shade200,
-              borderRadius: BorderRadius.circular(8),
-              image: c.picture != null
-                  ? DecorationImage(image: AssetImage(c.picture!), fit: BoxFit.cover)
-                  : null,
+          SizedBox(
+            height: imageHeight,
+            width: imageWidth,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                color: AppColors.purple4,
+                child: (backgroundImage != null)
+                    ? Image(
+                  image: backgroundImage,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _buildFallback(),
+                )
+                    : _buildFallback(),
+              ),
             ),
-            child: c.picture == null
-                ? const Icon(Icons.person, color: Colors.white, size: 40)
-                : null,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 3),
           Text(
-            c.name,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            name,
+            style: TextStyle(color: Colors.white, fontSize: dynamicNameFontSize),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildFinal() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: const [
-        Icon(Icons.help_outline, color: Colors.white, size: 48),
-      ],
     );
   }
 }
