@@ -257,14 +257,14 @@ class _ContestantCard extends StatelessWidget {
     required this.width,
   });
 
-  // Примечание: _buildFallback теперь определяется внутри build()
+  // Note: _buildFallback is now defined inside build()
 
   @override
   Widget build(BuildContext context) {
-    // Вычисление динамических размеров шрифта
+    // Calculating dynamic font sizes
     final double dynamicNameFontSize = (height * 0.15).clamp(8.0, 14.0);
     final double imageHeight = height * 0.55;
-    // Размер "?" берем как 50% от высоты картинки
+    // The size of the "?" is taken as 50% of the image height
     final double dynamicFallbackFontSize = (imageHeight * 0.5).clamp(12.0, 28.0);
 
     Widget _buildFallback() {
