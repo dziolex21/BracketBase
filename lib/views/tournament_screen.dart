@@ -170,7 +170,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => VotingScreen(gameId: widget.tournamentId,)),
+                        MaterialPageRoute(builder: (context) => VotingScreen(gameId: widget.tournamentId)),
                       );
                     },
                     style: ElevatedButton.styleFrom(

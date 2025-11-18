@@ -72,9 +72,7 @@ class _TournamentLobbyState extends State<TournamentLobby> {
           FirebaseFirestore.instance.collection('tournaments').doc(widget.lobbyId);
 
       try {
-        await docRef.update({
-          'playersList': FieldValue.arrayUnion([name])
-        });
+        await docRef.update({'playersList': FieldValue.arrayUnion([name])});
 
         if (mounted) {
           setState(() {
@@ -104,9 +102,7 @@ class _TournamentLobbyState extends State<TournamentLobby> {
       if (widget.isHost) {
         await docRef.delete();
       } else {
-        await docRef.update({
-          'playersList': FieldValue.arrayRemove([_playerName])
-        });
+        await docRef.update({'playersList': FieldValue.arrayRemove([_playerName])});
       }
     } catch (e) {
       // Document may already be deleted, ignore.
@@ -201,6 +197,29 @@ class _TournamentLobbyState extends State<TournamentLobby> {
 
                     final data = snapshot.data!.data() as Map<String, dynamic>?;
 
+                    if (data != null && (data['isStarted'] == true)) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          if (!_isStartingTournament) {
+                            setState(() {
+                              _isStartingTournament = true;
+                            });
+                          }
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => TournamentScreen(
+                                    isHost: widget.isHost,
+                                    tournamentId: widget.lobbyId)),
+                          );
+                        }
+                      });
+                      return const Center(
+                          child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ));
+                    }
+
                     if (data == null || data['playersList'] == null) {
                       return const Center(child: Text('Brak graczy'));
                     }
@@ -208,7 +227,8 @@ class _TournamentLobbyState extends State<TournamentLobby> {
                     final playersList = List<String>.from(data['playersList']);
 
                     return GridView.builder(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
@@ -247,14 +267,10 @@ class _TournamentLobbyState extends State<TournamentLobby> {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      setState(() {
-                        _isStartingTournament = true;
-                      });
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => TournamentScreen(isHost: widget.isHost, tournamentId: widget.lobbyId)),
-                      );
+                      final docRef = FirebaseFirestore.instance
+                          .collection('tournaments')
+                          .doc(widget.lobbyId);
+                      docRef.update({'isStarted': true});
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.purple2,
