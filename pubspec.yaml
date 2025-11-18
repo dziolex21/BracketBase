@@ -64,15 +64,19 @@ flutter:
   uses-material-design: true
 
   assets:
-    # Ta linia musi mieć 4 spacje wcięcia
+    # TUTAJ DODAJEMY FOLDERY Z OBRAZKAMI KLEISZ ???????
+
     - assets/
-    # Ta linia też musi mieć 4 spacje wcięcia
+
     - assets/fruits/
-    # I ta linia również musi mieć 4 spacje wcięcia
+
     - assets/avatars/
 
     - assets/machines/
 
+    - assets/jojo/
+
+    - assets/evangelion/
 
 
 
