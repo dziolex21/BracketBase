@@ -67,9 +67,11 @@ flutter:
     # Ta linia musi mieć 4 spacje wcięcia
     - assets/
     # Ta linia też musi mieć 4 spacje wcięcia
-    - assets/animals/
+    - assets/fruits/
     # I ta linia również musi mieć 4 spacje wcięcia
     - assets/avatars/
+
+    - assets/machines/
 
 
 
