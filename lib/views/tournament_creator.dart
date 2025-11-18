@@ -77,13 +77,7 @@ class _TournamentCreatorState extends State<TournamentCreator> {
             'avatar': contestant.picture
           });
     }
-    await mainDocRef
-        .collection('contestants')
-        .doc('init')
-        .set({
-            'name': 'init',
-            'avatar': 0
-          });
+
   }
 
   void _startTournament(BuildContext context) async {
