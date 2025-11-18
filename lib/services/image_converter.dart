@@ -21,8 +21,8 @@ Uint8List processImage(Uint8List imageBytes) {
   //    This will squash the image if the aspect ratio is not 1:1
   img.Image resizedImage = img.copyResize( // <--- CHANGE IS HERE
     originalImage,
-    width: 150,
-    height: 150,
+    width: 400,
+    height: 400,
     interpolation: img.Interpolation.linear, // Good quality for downscaling
   );
 
