@@ -10,34 +10,6 @@ import 'package:tournament_app/views/tournament_lobby.dart';
 class StartScreen extends StatelessWidget {
   const StartScreen({super.key});
 
-
-  void clearFirestoreCollection(List<String> exceptions) async {
-    final collectionRef = FirebaseFirestore.instance.collection("tournaments");
-    final querySnapshot = await collectionRef.get();
-
-    WriteBatch batch = FirebaseFirestore.instance.batch();
-    int ops = 0;
-
-    for (var doc in querySnapshot.docs) {
-      if (!exceptions.contains(doc.id)) {
-        batch.delete(doc.reference);
-        ops++;
-
-        // Firestore batch limit = 500
-        if (ops == 450) {
-          await batch.commit();
-          batch = FirebaseFirestore.instance.batch();
-          ops = 0;
-        }
-      }
-    }
-
-    // ostatni batch
-    if (ops > 0) {
-      await batch.commit();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -53,6 +25,37 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
+    void clearFirestoreCollection(List<String> exceptions) async {
+      final collectionRef = FirebaseFirestore.instance.collection("tournaments");
+
+      // Pobieramy wszystkie dokumenty w kolekcji
+      final querySnapshot = await collectionRef.get();
+
+      WriteBatch batch = FirebaseFirestore.instance.batch();
+      int ops = 0;
+
+      for (var doc in querySnapshot.docs) {
+        // Jeśli dokument nie jest w wyjątkach, usuń go
+        if (!exceptions.contains(doc.id)) {
+          batch.delete(doc.reference);
+          ops++;
+
+          // Firestore batch limit = 500
+          if (ops == 450) {
+            await batch.commit();
+            batch = FirebaseFirestore.instance.batch();
+            ops = 0;
+          }
+        }
+      }
+
+      // ostatni batch
+      if (ops > 0) {
+        await batch.commit();
+      }
+    }
+
     void showJoinTournamentPopup(BuildContext context) {
       final TextEditingController idController = TextEditingController();
 
@@ -211,7 +214,6 @@ class HomeScreen extends StatelessWidget {
         },
       );
     }
-
 
     return Scaffold(
       appBar: AppBar(
