@@ -6,6 +6,7 @@ import 'package:tournament_app/services/json_creator.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
 import 'package:tournament_app/views/tournament_lobby.dart';
 import 'package:tournament_app/views/tournament_settings.dart';
+import 'dart:convert';
 
 class TournamentCreator extends StatefulWidget {
   const TournamentCreator({super.key});
@@ -54,30 +55,29 @@ class _TournamentCreatorState extends State<TournamentCreator> {
     }
   }
 
-  void createTournamentOnServer(String id) async {
+  // Function to create a tournament on the server (one version left)
+  Future<void> createTournamentOnServer(String id, String bracketData) async {
     final mainDocRef =
-        FirebaseFirestore.instance.collection('tournaments').doc(id);
+    FirebaseFirestore.instance.collection('tournaments').doc(id);
 
     final mainData = {
       'optionAVotes': 0,
       'optionBVotes': 0,
       'playersList': [],
       'roundResult': 0,
+      'isStarted': false, // Important flag!
+      'bracketData': bracketData, // <--- SAVING THE BRACKET JSON
     };
 
     await mainDocRef.set(mainData);
 
-    // tutaj dodajemy contestantów - iteracja z tablicy _contestants
+    // Add the contestants collection
     for (var contestant in _contestants) {
-      await mainDocRef.
-      collection('contestants')
-          .doc(contestant.name)
-          .set({
-            'name': contestant.name,
-            'avatar': contestant.picture
-          });
+      await mainDocRef.collection('contestants').doc(contestant.name).set({
+        'name': contestant.name,
+        'avatar': contestant.picture
+      });
     }
-
   }
 
   void _startTournament(BuildContext context) async {
@@ -89,32 +89,44 @@ class _TournamentCreatorState extends State<TournamentCreator> {
       return;
     }
 
-    await createTournamentBracket(_contestants);
+    // 1. Create the bracket. This function will return a Map and save the file locally for the host
+    final bracketMap = await createTournamentBracket(_contestants);
+    final String bracketJsonString = jsonEncode(bracketMap);
 
     final random = Random();
     String id = "";
-    for (int i = 0; i < 6; i++) {
-      id += random.nextInt(10).toString();
-    }
 
-    final docRef = FirebaseFirestore.instance.collection("tournaments").doc(id);
-    final docSnapshot = await docRef.get();
-    while (docSnapshot.exists) {
+    // 1. Loop to generate a UNIQUE ID
+    DocumentSnapshot docSnapshot;
+
+    do {
+      // Generate a new 6-digit ID
       id = "";
       for (int i = 0; i < 6; i++) {
         id += random.nextInt(10).toString();
       }
-    }
-    createTournamentOnServer(id);
+
+      // Check its existence
+      final docRef = FirebaseFirestore.instance.collection("tournaments").doc(id);
+      docSnapshot = await docRef.get();
+
+      // Repeat while a document with this ID exists
+    } while (docSnapshot.exists);
+
+    // Now the 'id' variable is guaranteed to contain a unique, non-empty ID
+
+    await createTournamentOnServer(id, bracketJsonString);
+
+    if (!mounted) return;
 
     Navigator.push(
       context,
       MaterialPageRoute(
+        // ID is passed to the Lobby
         builder: (context) => TournamentLobby(lobbyId: id, isHost: true),
       ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -167,7 +179,7 @@ class _TournamentCreatorState extends State<TournamentCreator> {
                   child: ListView.separated(
                     itemCount: _contestants.length + 1,
                     separatorBuilder: (context, index) =>
-                        const SizedBox(height: 12.0),
+                    const SizedBox(height: 12.0),
                     itemBuilder: (context, index) {
                       if (index == _contestants.length) {
                         return _buildAddContestantButton(context);
