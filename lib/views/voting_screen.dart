@@ -5,15 +5,15 @@ import 'package:tournament_app/configs/color_data.dart';
 
 bool hasVoted = false;
 
-class VoteScreen extends StatefulWidget {
+class VotingScreen extends StatefulWidget {
   final String gameId;
-  const VoteScreen({super.key, this.gameId = ""});
+  const VotingScreen({super.key, this.gameId = ""});
 
   @override
-  State<VoteScreen> createState() => _VoteScreenState();
+  State<VotingScreen> createState() => _VotingScreenState();
 }
 
-class _VoteScreenState extends State<VoteScreen> {
+class _VotingScreenState extends State<VotingScreen> {
   DocumentReference<Map<String, dynamic>> get docRef => FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
   int expectedVotes = 0;
 

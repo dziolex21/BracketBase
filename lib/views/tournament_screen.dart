@@ -146,12 +146,13 @@ class _TournamentScreenState extends State<TournamentScreen> {
                     children: [
                       for (int i = 0; i < rounds.length; i++)
                         Padding(
-                          padding: const EdgeInsets.only(left: 16, right:16, top:0,bottom: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
                           child: _RoundColumn(
                             roundName: rounds[i],
                             players: List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
                             totalSlots: totalSlots,
                             roundIndex: i,
+                            horizontalPadding: horizontalPadding,
                           ),
                         ),
                     ],
@@ -169,7 +170,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => VoteScreen(gameId: widget.tournamentId,)),
+                        MaterialPageRoute(builder: (context) => VotingScreen(gameId: widget.tournamentId,)),
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -377,3 +378,60 @@ class _ContestantCard extends StatelessWidget {
     );
   }
 }
+<<<<<<< HEAD
+=======
+
+class BracketPainter extends CustomPainter {
+  final List<double> positions;
+  final double totalHeight;
+  final double cardWidth;
+  final double lineLength; // This is the "space" for the line (40px)
+  final Color lineColor;
+  final double strokeWidth;
+  final double cardsTopOffset;
+  final double horizontalPadding;
+
+  BracketPainter({
+    required this.positions,
+    required this.totalHeight,
+    required this.cardWidth,
+    required this.lineLength,
+    required this.lineColor,
+    required this.strokeWidth,
+    required this.cardsTopOffset,
+    required this.horizontalPadding,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = lineColor
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    for (int i = 0; i < positions.length - 1; i += 2) {
+      //  FIX 1: Y-coordinates now po
+      final double Y1 = (totalHeight * positions[i]) + cardsTopOffset;
+      final double Y2 = (totalHeight * positions[i + 1]) + cardsTopOffset;
+
+      final double Ymid = (Y1 + Y2) / 2;
+
+      final double Xstart = cardWidth;
+      final double Xvert = cardWidth + lineLength / 2;
+
+      final double Xend = cardWidth + lineLength + (horizontalPadding * 2);
+
+      canvas.drawLine(Offset(Xstart, Y1), Offset(Xvert, Y1), paint);
+
+      canvas.drawLine(Offset(Xstart, Y2), Offset(Xvert, Y2), paint);
+
+      canvas.drawLine(Offset(Xvert, Y1), Offset(Xvert, Y2), paint);
+
+      canvas.drawLine(Offset(Xvert, Ymid), Offset(Xend, Ymid), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+>>>>>>> main
