@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tournament_app/configs/color_data.dart';
+import 'package:tournament_app/views/tournament_screen.dart';
 
 class VotingScreen extends StatefulWidget {
   final String gameId;
@@ -277,9 +278,16 @@ class _ResultScreenState extends State<ResultScreen> {
   // This method will be called by the host to signal returning to the tournament
   Future<void> _endVoting() async {
     await docRef.update({'isVotingStarted': false});
-    // This pop will take the host back to the tournament screen
     if (mounted) {
-      Navigator.of(context).pop();
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TournamentScreen(
+            tournamentId: widget.gameId,
+            isHost: widget.isHost,
+          ),
+        ),
+      );
     }
   }
 
@@ -293,12 +301,21 @@ class _ResultScreenState extends State<ResultScreen> {
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>;
             if (data['isVotingStarted'] == false) {
-              // When the flag is false, pop back to the tournament screen
+              // When the flag is false, navigate back to the tournament screen
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
-                  Navigator.of(context).pop();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TournamentScreen(
+                        tournamentId: widget.gameId,
+                        isHost: widget.isHost,
+                      ),
+                    ),
+                  );
                 }
               });
+              return const Center(child: CircularProgressIndicator());
             }
           }
           // While waiting for the host, show the results
