@@ -7,7 +7,8 @@ bool hasVoted = false;
 
 class VotingScreen extends StatefulWidget {
   final String gameId;
-  const VotingScreen({super.key, this.gameId = ""});
+  final bool isHost;
+  const VotingScreen({super.key, this.gameId = "", this.isHost = false});
 
   @override
   State<VotingScreen> createState() => _VotingScreenState();
@@ -20,7 +21,9 @@ class _VotingScreenState extends State<VotingScreen> {
   @override
   void initState() {
     super.initState();
-    _resetVotes();
+    if (widget.isHost) {
+      _resetVotes();
+    }
   }
 
   /// 🔁 Resetuje dane głosowania w Firestore i lokalnie
@@ -70,6 +73,8 @@ class _VotingScreenState extends State<VotingScreen> {
                       builder: (context) => ResultScreen(
                         votesA: votesA,
                         votesB: votesB,
+                        gameId: widget.gameId,
+                        isHost: widget.isHost,
                       ),
                     ),
                   );
@@ -249,21 +254,70 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
   }
 }
 
-class ResultScreen extends StatelessWidget {
+class ResultScreen extends StatefulWidget {
   final int votesA;
   final int votesB;
+  final String gameId;
+  final bool isHost;
 
   const ResultScreen({
     super.key,
     required this.votesA,
     required this.votesB,
+    required this.gameId,
+    required this.isHost,
   });
 
   @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  DocumentReference<Map<String, dynamic>> get docRef =>
+      FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
+
+  // This method will be called by the host to signal returning to the tournament
+  Future<void> _endVoting() async {
+    await docRef.update({'isVotingStarted': false});
+    // This pop will take the host back to the tournament screen
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // For non-hosts, we listen for the host's signal to go back
+    if (!widget.isHost) {
+      return StreamBuilder<DocumentSnapshot>(
+        stream: docRef.snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            if (data['isVotingStarted'] == false) {
+              // When the flag is false, pop back to the tournament screen
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.of(context).pop();
+                }
+              });
+            }
+          }
+          // While waiting for the host, show the results
+          return _buildResultsView();
+        },
+      );
+    }
+
+    // For the host, we show the results and the button to go back
+    return _buildResultsView();
+  }
+
+  // Helper widget to build the result view UI to avoid repetition
+  Widget _buildResultsView() {
     String getWinnerText() {
-      if (votesA > votesB) return 'Option A wins!';
-      if (votesB > votesA) return 'Option B wins!';
+      if (widget.votesA > widget.votesB) return 'Option A wins!';
+      if (widget.votesB > widget.votesA) return 'Option B wins!';
       return "It's a Tie!";
     }
 
@@ -285,12 +339,27 @@ class ResultScreen extends StatelessWidget {
             ),
             const SizedBox(height: 30),
             Text(
-              'A: $votesA   |   B: $votesB',
+              'A: ${widget.votesA}   |   B: ${widget.votesB}',
               style: const TextStyle(
                 fontSize: 24,
                 color: Color(0xFFD2A2FF),
               ),
             ),
+            const SizedBox(height: 50),
+            // This button is only visible to the host
+            if (widget.isHost)
+              ElevatedButton(
+                onPressed: _endVoting,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.purple1,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                ),
+                child: const Text(
+                  'Back to Tournament',
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
+              ),
           ],
         ),
       ),
