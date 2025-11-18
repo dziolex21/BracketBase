@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:tournament_app/configs/color_data.dart';
+import 'package:tournament_app/views/voting_screen.dart';
 
 class TournamentScreen extends StatefulWidget {
   final bool isHost;
@@ -145,12 +146,13 @@ class _TournamentScreenState extends State<TournamentScreen> {
                     children: [
                       for (int i = 0; i < rounds.length; i++)
                         Padding(
-                          padding: const EdgeInsets.only(left: 16, right:16, top:0,bottom: 16),
+                          padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
                           child: _RoundColumn(
                             roundName: rounds[i],
                             players: List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
                             totalSlots: totalSlots,
                             roundIndex: i,
+                            horizontalPadding: horizontalPadding,
                           ),
                         ),
                     ],
@@ -168,7 +170,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => VoteScreen(gameId: widget.tournamentId,)),
+                        MaterialPageRoute(builder: (context) => VotingScreen(gameId: widget.tournamentId,)),
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -186,9 +188,10 @@ class _TournamentScreenState extends State<TournamentScreen> {
                           fontWeight: FontWeight.bold),
                     ),
                   ),
-              ],
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -441,31 +444,23 @@ class BracketPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     for (int i = 0; i < positions.length - 1; i += 2) {
-      //  FIX 1: Y-coordinates now point EXACTLY to the center of the card
-      // Center = (percentage position * height) + offset
+      //  FIX 1: Y-coordinates now po
       final double Y1 = (totalHeight * positions[i]) + cardsTopOffset;
       final double Y2 = (totalHeight * positions[i + 1]) + cardsTopOffset;
 
       final double Ymid = (Y1 + Y2) / 2;
 
-      // X-coordinates
-      final double Xstart = cardWidth; // Right edge of the card
-      final double Xvert = cardWidth + lineLength / 2; // Point for the vertical line
+      final double Xstart = cardWidth;
+      final double Xvert = cardWidth + lineLength / 2;
 
-      //  FIX 2: The line must cross its space (lineLength)
-      // AND DOUBLE the padding (horizontalPadding * 2) to reach the next card
       final double Xend = cardWidth + lineLength + (horizontalPadding * 2);
 
-      // 1. Horizontal line from the top card
       canvas.drawLine(Offset(Xstart, Y1), Offset(Xvert, Y1), paint);
 
-      // 2. Horizontal line from the bottom card
       canvas.drawLine(Offset(Xstart, Y2), Offset(Xvert, Y2), paint);
 
-      // 3. Vertical line (connector)
       canvas.drawLine(Offset(Xvert, Y1), Offset(Xvert, Y2), paint);
 
-      // 4. Outgoing horizontal line (to the next round)
       canvas.drawLine(Offset(Xvert, Ymid), Offset(Xend, Ymid), paint);
     }
   }
