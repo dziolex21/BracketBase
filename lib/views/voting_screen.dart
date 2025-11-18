@@ -14,14 +14,13 @@ class VotingScreen extends StatefulWidget {
 }
 
 class _VotingScreenState extends State<VotingScreen> {
-  DocumentReference<Map<String, dynamic>> get docRef => FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
-  int expectedVotes = 0;
+  DocumentReference<Map<String, dynamic>> get docRef =>
+      FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
 
   @override
   void initState() {
     super.initState();
     _resetVotes();
-    _loadPlayerCount();
   }
 
   /// 🔁 Resetuje dane głosowania w Firestore i lokalnie
@@ -29,17 +28,12 @@ class _VotingScreenState extends State<VotingScreen> {
     hasVoted = false;
     _VoteOptionCardState.selectedOption = null;
 
+    // Użyj `merge: true`, aby zaktualizować dokument bez usuwania istniejących pól,
+    // takich jak `playersList`.
     await docRef.set({
       'optionA': 0,
       'optionB': 0,
-      'totalVotes': 0,
-    }, SetOptions(merge: false)); // nadpisuje cały dokument
-  }
-
-  /// 👥 Pobiera liczbę graczy z dokumentu Lobby
-  Future<void> _loadPlayerCount() async {
-    DocumentSnapshot doc = await docRef.get();
-    expectedVotes = (doc['playersList'] as List).length;
+    }, SetOptions(merge: true));
   }
 
   @override
@@ -50,11 +44,18 @@ class _VotingScreenState extends State<VotingScreen> {
         child: StreamBuilder<DocumentSnapshot>(
           stream: docRef.snapshots(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData || expectedVotes == 0) {
+            if (!snapshot.hasData || !snapshot.data!.exists) {
               return const Center(child: CircularProgressIndicator());
             }
 
             final data = snapshot.data!.data() as Map<String, dynamic>;
+            final players = data['playersList'] as List? ?? [];
+            final expectedVotes = players.length;
+
+            if (expectedVotes == 0) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
             final votesA = data['optionA'] ?? 0;
             final votesB = data['optionB'] ?? 0;
             final totalVotes = votesA + votesB;
@@ -62,16 +63,19 @@ class _VotingScreenState extends State<VotingScreen> {
             // ✅ Jeśli wszyscy zagłosowali -> przejście do wyników
             if (totalVotes >= expectedVotes) {
               Future.microtask(() {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ResultScreen(
-                      votesA: votesA,
-                      votesB: votesB,
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ResultScreen(
+                        votesA: votesA,
+                        votesB: votesB,
+                      ),
                     ),
-                  ),
-                );
+                  );
+                }
               });
+              return const Center(child: CircularProgressIndicator());
             }
 
             return Column(
@@ -159,8 +163,10 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
   void vote() async {
     if (hasVoted) return;
 
-    hasVoted = true;
-    selectedOption = widget.optionKey;
+    setState(() {
+      hasVoted = true;
+      selectedOption = widget.optionKey;
+    });
 
     await FirebaseFirestore.instance.runTransaction((transaction) async {
       final snapshot = await transaction.get(docRef);
@@ -171,8 +177,6 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
         widget.optionKey: (data[widget.optionKey] ?? 0) + 1,
       });
     });
-
-    setState(() {});
   }
 
   @override
@@ -257,7 +261,13 @@ class ResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final winner = votesA > votesB ? 'Option A wins!' : 'Option B wins!';
+    String getWinnerText() {
+      if (votesA > votesB) return 'Option A wins!';
+      if (votesB > votesA) return 'Option B wins!';
+      return "It's a Tie!";
+    }
+
+    final winner = getWinnerText();
 
     return Scaffold(
       backgroundColor: AppColors.purple5,
