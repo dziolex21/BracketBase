@@ -253,7 +253,7 @@ class _TournamentLobbyState extends State<TournamentLobby> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => TournamentScreen(isHost: widget.isHost)),
+                            builder: (context) => TournamentScreen(isHost: widget.isHost, tournamentId: widget.lobbyId)),
                       );
                     },
                     style: ElevatedButton.styleFrom(

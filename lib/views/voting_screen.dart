@@ -1,21 +1,20 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tournament_app/configs/color_data.dart';
 
-final String quizId = "Quiz1";
 bool hasVoted = false;
 
-class VoteScreen extends StatefulWidget {
-  const VoteScreen({super.key});
+class VotingScreen extends StatefulWidget {
+  final String gameId;
+  const VotingScreen({super.key, this.gameId = ""});
 
   @override
-  State<VoteScreen> createState() => _VoteScreenState();
+  State<VotingScreen> createState() => _VotingScreenState();
 }
 
-class _VoteScreenState extends State<VoteScreen> {
-  final docRefVotes = FirebaseFirestore.instance.collection(quizId).doc("votes");
-  final docRefLobby = FirebaseFirestore.instance.collection(quizId).doc("lobby");
-
+class _VotingScreenState extends State<VotingScreen> {
+  DocumentReference<Map<String, dynamic>> get docRef => FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
   int expectedVotes = 0;
 
   @override
@@ -30,7 +29,7 @@ class _VoteScreenState extends State<VoteScreen> {
     hasVoted = false;
     _VoteOptionCardState.selectedOption = null;
 
-    await docRefVotes.set({
+    await docRef.set({
       'optionA': 0,
       'optionB': 0,
       'totalVotes': 0,
@@ -39,17 +38,8 @@ class _VoteScreenState extends State<VoteScreen> {
 
   /// 👥 Pobiera liczbę graczy z dokumentu Lobby
   Future<void> _loadPlayerCount() async {
-    final snapshot = await docRefLobby.get();
-    if (snapshot.exists) {
-      final data = snapshot.data()!;
-      setState(() {
-        expectedVotes = data.length;
-      });
-    } else {
-      setState(() {
-        expectedVotes = 0;
-      });
-    }
+    DocumentSnapshot doc = await docRef.get();
+    expectedVotes = (doc['playersList'] as List).length;
   }
 
   @override
@@ -58,7 +48,7 @@ class _VoteScreenState extends State<VoteScreen> {
       backgroundColor: AppColors.purple5,
       body: SafeArea(
         child: StreamBuilder<DocumentSnapshot>(
-          stream: docRefVotes.snapshots(),
+          stream: docRef.snapshots(),
           builder: (context, snapshot) {
             if (!snapshot.hasData || expectedVotes == 0) {
               return const Center(child: CircularProgressIndicator());
@@ -108,12 +98,14 @@ class _VoteScreenState extends State<VoteScreen> {
                         imagePath: 'assets/placeholder_image.png',
                         votes: votesA,
                         optionKey: 'optionA',
+                        gameId: widget.gameId,
                       ),
                       VoteOptionCard(
                         title: 'Option B',
                         imagePath: 'assets/placeholder_image.png',
                         votes: votesB,
                         optionKey: 'optionB',
+                        gameId: widget.gameId,
                       ),
                     ],
                   ),
@@ -145,6 +137,7 @@ class VoteOptionCard extends StatefulWidget {
   final String imagePath;
   final int votes;
   final String optionKey;
+  final String gameId;
 
   const VoteOptionCard({
     super.key,
@@ -152,6 +145,7 @@ class VoteOptionCard extends StatefulWidget {
     required this.imagePath,
     required this.votes,
     required this.optionKey,
+    required this.gameId
   });
 
   @override
@@ -159,6 +153,7 @@ class VoteOptionCard extends StatefulWidget {
 }
 
 class _VoteOptionCardState extends State<VoteOptionCard> {
+  DocumentReference<Map<String, dynamic>> get docRef => FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
   static String? selectedOption;
 
   void vote() async {
@@ -167,8 +162,6 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
     hasVoted = true;
     selectedOption = widget.optionKey;
 
-    final docRef = FirebaseFirestore.instance.collection(quizId).doc("votes");
-
     await FirebaseFirestore.instance.runTransaction((transaction) async {
       final snapshot = await transaction.get(docRef);
       if (!snapshot.exists) return;
@@ -176,7 +169,6 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
       final data = snapshot.data()!;
       transaction.update(docRef, {
         widget.optionKey: (data[widget.optionKey] ?? 0) + 1,
-        'totalVotes': (data['totalVotes'] ?? 0) + 1,
       });
     });
 

@@ -1,14 +1,9 @@
-import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/services/json_creator.dart';
 import 'package:tournament_app/views/contestant_editor_screen.dart';
-import 'package:tournament_app/views/start_screen.dart';
 import 'package:tournament_app/views/tournament_lobby.dart';
 import 'package:tournament_app/views/tournament_settings.dart';
 
@@ -72,10 +67,23 @@ class _TournamentCreatorState extends State<TournamentCreator> {
 
     await mainDocRef.set(mainData);
 
+    // tutaj dodajemy contestantów - iteracja z tablicy _contestants
+    for (var contestant in _contestants) {
+      await mainDocRef.
+      collection('contestants')
+          .doc(contestant.name)
+          .set({
+            'name': contestant.name,
+            'avatar': contestant.picture
+          });
+    }
     await mainDocRef
-        .collection('contestantImages')
+        .collection('contestants')
         .doc('init')
-        .set({});
+        .set({
+            'name': 'init',
+            'avatar': 0
+          });
   }
 
   void _startTournament(BuildContext context) async {
