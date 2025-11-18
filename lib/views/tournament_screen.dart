@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
@@ -122,78 +123,96 @@ class _TournamentScreenState extends State<TournamentScreen> {
     const double horizontalPadding = 16.0;
 
 
-    return WillPopScope(
-      onWillPop: () async => false,
-      child: Scaffold(
-        backgroundColor: AppColors.purple5,
-        appBar: AppBar(
-          title: const Text('Tournament'),
-          backgroundColor: AppColors.purple3,
-          automaticallyImplyLeading: false,
-        ),
-        body: Column(
-          children: [
-            Expanded(
-              child: InteractiveViewer(
-                boundaryMargin: const EdgeInsets.all(20.0),
-                minScale: 0.1,
-                maxScale: 3.0,
-                constrained: false,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (int i = 0; i < rounds.length; i++)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
-                          child: _RoundColumn(
-                            roundName: rounds[i],
-                            players: List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
-                            totalSlots: totalSlots,
-                            roundIndex: i,
-                            horizontalPadding: horizontalPadding,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+    return StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance.collection('tournaments').doc(widget.tournamentId).snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final data = snapshot.data!.data() as Map<String, dynamic>?;
+            if (data != null && data['isVotingStarted'] == true) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => VotingScreen(gameId: widget.tournamentId)),
+                  );
+                }
+              });
+            }
+          }
+          return WillPopScope(
+            onWillPop: () async => false,
+            child: Scaffold(
+              backgroundColor: AppColors.purple5,
+              appBar: AppBar(
+                title: const Text('Tournament'),
+                backgroundColor: AppColors.purple3,
+                automaticallyImplyLeading: false,
               ),
-            ),
-            Visibility(
-              visible: widget.isHost,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => VotingScreen(gameId: widget.tournamentId)),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.purple1,
-                      padding: const EdgeInsets.symmetric(vertical: 16.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
+              body: Column(
+                children: [
+                  Expanded(
+                    child: InteractiveViewer(
+                      boundaryMargin: const EdgeInsets.all(20.0),
+                      minScale: 0.1,
+                      maxScale: 3.0,
+                      constrained: false,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (int i = 0; i < rounds.length; i++)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
+                                child: _RoundColumn(
+                                  roundName: rounds[i],
+                                  players: List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
+                                  totalSlots: totalSlots,
+                                  roundIndex: i,
+                                  horizontalPadding: horizontalPadding,
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
-                    child: const Text(
-                      'Go to Voting',
-                      style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold),
+                  ),
+                  Visibility(
+                    visible: widget.isHost,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            FirebaseFirestore.instance
+                                .collection('tournaments')
+                                .doc(widget.tournamentId)
+                                .update({'isVotingStarted': true});
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.purple1,
+                            padding: const EdgeInsets.symmetric(vertical: 16.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                          ),
+                          child: const Text(
+                            'Go to Voting',
+                            style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
+          );
+        }
     );
   }
 }
