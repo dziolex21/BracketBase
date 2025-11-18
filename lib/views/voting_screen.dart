@@ -2,12 +2,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tournament_app/configs/color_data.dart';
-
-bool hasVoted = false;
+import 'package:tournament_app/views/tournament_screen.dart';
 
 class VotingScreen extends StatefulWidget {
   final String gameId;
-  const VotingScreen({super.key, this.gameId = ""});
+  final bool isHost;
+  const VotingScreen({super.key, this.gameId = "", this.isHost = false});
 
   @override
   State<VotingScreen> createState() => _VotingScreenState();
@@ -17,23 +17,51 @@ class _VotingScreenState extends State<VotingScreen> {
   DocumentReference<Map<String, dynamic>> get docRef =>
       FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
 
+  // State variables to track the user's vote locally
+  bool _userHasVoted = false;
+  String? _selectedOptionKey;
+
   @override
   void initState() {
     super.initState();
-    _resetVotes();
+    if (widget.isHost) {
+      _resetTournamentVotes();
+    }
   }
 
-  /// 🔁 Resetuje dane głosowania w Firestore i lokalnie
-  Future<void> _resetVotes() async {
-    hasVoted = false;
-    _VoteOptionCardState.selectedOption = null;
+  /// 🔁 Reset tournament votes in Firestore (Host only)
+  Future<void> _resetTournamentVotes() async {
+    // Also reset local state for the host
+    setState(() {
+      _userHasVoted = false;
+      _selectedOptionKey = null;
+    });
 
-    // Użyj `merge: true`, aby zaktualizować dokument bez usuwania istniejących pól,
-    // takich jak `playersList`.
-    await docRef.set({
+    await docRef.update({
       'optionA': 0,
       'optionB': 0,
-    }, SetOptions(merge: true));
+    });
+  }
+
+  /// Handles the user's vote action
+  void _handleVote(String optionKey) {
+    if (_userHasVoted) {
+      return; // Prevent multiple votes from the same user
+    }
+
+    setState(() {
+      _userHasVoted = true;
+      _selectedOptionKey = optionKey;
+    });
+
+    // Run a transaction to safely update the vote count
+    FirebaseFirestore.instance.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      if (!snapshot.exists) return;
+
+      final currentVotes = snapshot.data()![optionKey] ?? 0;
+      transaction.update(docRef, {optionKey: currentVotes + 1});
+    });
   }
 
   @override
@@ -53,6 +81,7 @@ class _VotingScreenState extends State<VotingScreen> {
             final expectedVotes = players.length;
 
             if (expectedVotes == 0) {
+              // This might happen temporarily if the lobby data is still loading
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -60,7 +89,7 @@ class _VotingScreenState extends State<VotingScreen> {
             final votesB = data['optionB'] ?? 0;
             final totalVotes = votesA + votesB;
 
-            // ✅ Jeśli wszyscy zagłosowali -> przejście do wyników
+            // ✅ If everyone has voted -> navigate to results
             if (totalVotes >= expectedVotes) {
               Future.microtask(() {
                 if (mounted) {
@@ -70,11 +99,14 @@ class _VotingScreenState extends State<VotingScreen> {
                       builder: (context) => ResultScreen(
                         votesA: votesA,
                         votesB: votesB,
+                        gameId: widget.gameId,
+                        isHost: widget.isHost,
                       ),
                     ),
                   );
                 }
               });
+              // Show a loader while navigating
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -91,7 +123,7 @@ class _VotingScreenState extends State<VotingScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Sekcja głosowania
+                // Voting section
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Row(
@@ -101,21 +133,21 @@ class _VotingScreenState extends State<VotingScreen> {
                         title: 'Option A',
                         imagePath: 'assets/placeholder_image.png',
                         votes: votesA,
-                        optionKey: 'optionA',
-                        gameId: widget.gameId,
+                        isSelected: _selectedOptionKey == 'optionA',
+                        onTap: () => _handleVote('optionA'),
                       ),
                       VoteOptionCard(
                         title: 'Option B',
                         imagePath: 'assets/placeholder_image.png',
                         votes: votesB,
-                        optionKey: 'optionB',
-                        gameId: widget.gameId,
+                        isSelected: _selectedOptionKey == 'optionB',
+                        onTap: () => _handleVote('optionB'),
                       ),
                     ],
                   ),
                 ),
 
-                // Licznik
+                // Counter
                 Padding(
                   padding: const EdgeInsets.only(bottom: 40, top: 20),
                   child: Text(
@@ -136,62 +168,34 @@ class _VotingScreenState extends State<VotingScreen> {
   }
 }
 
-class VoteOptionCard extends StatefulWidget {
+// VoteOptionCard is now a StatelessWidget
+class VoteOptionCard extends StatelessWidget {
   final String title;
   final String imagePath;
   final int votes;
-  final String optionKey;
-  final String gameId;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   const VoteOptionCard({
     super.key,
     required this.title,
     required this.imagePath,
     required this.votes,
-    required this.optionKey,
-    required this.gameId
+    required this.isSelected,
+    required this.onTap,
   });
 
   @override
-  State<VoteOptionCard> createState() => _VoteOptionCardState();
-}
-
-class _VoteOptionCardState extends State<VoteOptionCard> {
-  DocumentReference<Map<String, dynamic>> get docRef => FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
-  static String? selectedOption;
-
-  void vote() async {
-    if (hasVoted) return;
-
-    setState(() {
-      hasVoted = true;
-      selectedOption = widget.optionKey;
-    });
-
-    await FirebaseFirestore.instance.runTransaction((transaction) async {
-      final snapshot = await transaction.get(docRef);
-      if (!snapshot.exists) return;
-
-      final data = snapshot.data()!;
-      transaction.update(docRef, {
-        widget.optionKey: (data[widget.optionKey] ?? 0) + 1,
-      });
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final bool isSelected = selectedOption == widget.optionKey;
-
     return Expanded(
       child: GestureDetector(
-        onTap: vote,
+        onTap: onTap,
         child: Container(
           height: 300,
           decoration: BoxDecoration(
             color: isSelected
-                ? AppColors.purple1 // jaśniejszy kolor przy wybraniu
-                : AppColors.purple3, // standardowy kolor
+                ? AppColors.purple1 // Lighter color when selected
+                : AppColors.purple3, // Standard color
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isSelected ? Colors.white : Colors.transparent,
@@ -212,7 +216,7 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  widget.title,
+                  title,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
@@ -222,7 +226,7 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
               ),
               Expanded(
                 child: Center(
-                  child: Image.asset(widget.imagePath),
+                  child: Image.asset(imagePath),
                 ),
               ),
               Container(
@@ -236,7 +240,7 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
                   ),
                 ),
                 child: Text(
-                  'Votes: ${widget.votes}',
+                  'Votes: $votes',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white),
                 ),
@@ -249,21 +253,86 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
   }
 }
 
-class ResultScreen extends StatelessWidget {
+class ResultScreen extends StatefulWidget {
   final int votesA;
   final int votesB;
+  final String gameId;
+  final bool isHost;
 
   const ResultScreen({
     super.key,
     required this.votesA,
     required this.votesB,
+    required this.gameId,
+    required this.isHost,
   });
 
   @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  DocumentReference<Map<String, dynamic>> get docRef =>
+      FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
+
+  // This method will be called by the host to signal returning to the tournament
+  Future<void> _endVoting() async {
+    await docRef.update({'isVotingStarted': false});
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TournamentScreen(
+            tournamentId: widget.gameId,
+            isHost: widget.isHost,
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // For non-hosts, we listen for the host's signal to go back
+    if (!widget.isHost) {
+      return StreamBuilder<DocumentSnapshot>(
+        stream: docRef.snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasData && snapshot.data!.exists) {
+            final data = snapshot.data!.data() as Map<String, dynamic>;
+            if (data['isVotingStarted'] == false) {
+              // When the flag is false, navigate back to the tournament screen
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => TournamentScreen(
+                        tournamentId: widget.gameId,
+                        isHost: widget.isHost,
+                      ),
+                    ),
+                  );
+                }
+              });
+              return const Center(child: CircularProgressIndicator());
+            }
+          }
+          // While waiting for the host, show the results
+          return _buildResultsView();
+        },
+      );
+    }
+
+    // For the host, we show the results and the button to go back
+    return _buildResultsView();
+  }
+
+  // Helper widget to build the result view UI to avoid repetition
+  Widget _buildResultsView() {
     String getWinnerText() {
-      if (votesA > votesB) return 'Option A wins!';
-      if (votesB > votesA) return 'Option B wins!';
+      if (widget.votesA > widget.votesB) return 'Option A wins!';
+      if (widget.votesB > widget.votesA) return 'Option B wins!';
       return "It's a Tie!";
     }
 
@@ -285,12 +354,27 @@ class ResultScreen extends StatelessWidget {
             ),
             const SizedBox(height: 30),
             Text(
-              'A: $votesA   |   B: $votesB',
+              'A: ${widget.votesA}   |   B: ${widget.votesB}',
               style: const TextStyle(
                 fontSize: 24,
                 color: Color(0xFFD2A2FF),
               ),
             ),
+            const SizedBox(height: 50),
+            // This button is only visible to the host
+            if (widget.isHost)
+              ElevatedButton(
+                onPressed: _endVoting,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.purple1,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                ),
+                child: const Text(
+                  'Back to Tournament',
+                  style: TextStyle(fontSize: 18, color: Colors.white),
+                ),
+              ),
           ],
         ),
       ),
