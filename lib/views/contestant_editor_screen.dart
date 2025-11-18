@@ -1,12 +1,9 @@
+// lib/views/contestant_editor_screen.dart
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:tournament_app/configs/color_data.dart';
-import 'package:tournament_app/services/image_converter.dart';
 import 'package:tournament_app/services/json_creator.dart';
+import 'package:tournament_app/views/asset_image_picker_screen.dart'; // <-- Nowy import
 
 class ContestantEditorScreen extends StatefulWidget {
   final Contestant? contestant;
@@ -20,12 +17,12 @@ class ContestantEditorScreen extends StatefulWidget {
 class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
   late final TextEditingController _nameController;
   late String _imagePath;
-  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.contestant?.name);
+    // Domyślny obrazek, jeśli żaden nie został jeszcze wybrany
     _imagePath = widget.contestant?.picture ?? 'assets/placeholder_image.png';
   }
 
@@ -35,19 +32,19 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      final Uint8List originalBytes = await image.readAsBytes();
-      final Uint8List convertedBytes = await ImageConverter.convert(originalBytes);
-      final tempDir = await getTemporaryDirectory();
-      final String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final filePath = p.join(tempDir.path, fileName);
-      final File imageFile = File(filePath);
-      await imageFile.writeAsBytes(convertedBytes);
+  // Funkcja otwierająca nowy ekran wyboru obrazu
+  Future<void> _pickAssetImage() async {
+    final result = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AssetImagePickerScreen(),
+      ),
+    );
 
+    // Jeśli użytkownik wybrał obraz, zaktualizuj stan
+    if (result != null) {
       setState(() {
-        _imagePath = filePath;
+        _imagePath = result;
       });
     }
   }
@@ -101,16 +98,23 @@ class _ContestantEditorScreenState extends State<ContestantEditorScreen> {
                   children: [
                     Expanded(
                       child: Center(
-                        child: _imagePath.startsWith('assets/')
-                            ? Image.asset(_imagePath)
-                            : Image.file(File(_imagePath)),
+                        // Użyj ClipRRect, aby obrazek miał zaokrąglone rogi pasujące do tła
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(16.0),
+                          child: Image.asset(
+                            _imagePath,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16.0),
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: _pickImage,
+                        // Wywołaj nową funkcję
+                        onPressed: _pickAssetImage,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.purple3,
                           padding: const EdgeInsets.symmetric(vertical: 12.0),

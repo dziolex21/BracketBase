@@ -59,16 +59,20 @@ dev_dependencies:
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
+# PRAWIDŁOWO
 flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
   assets:
+    # Ta linia musi mieć 4 spacje wcięcia
     - assets/
+    # Ta linia też musi mieć 4 spacje wcięcia
+    - assets/animals/
+    # I ta linia również musi mieć 4 spacje wcięcia
+    - assets/avatars/
+
+
+
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
