@@ -149,13 +149,39 @@ class HomeScreen extends StatelessWidget {
                           final doc = await docRef.get();
   
                           if (doc.exists) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    TournamentLobby(lobbyId: enteredId),
-                              ),
-                            );
+                            final data = doc.data();
+                            final bool isStarted = data?['isStarted'] ?? false;
+                            
+                            if (!isStarted) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      TournamentLobby(lobbyId: enteredId),
+                                ),
+                              );
+                            } else {
+                              // Turniej już wystartował
+                              ScaffoldMessenger.of(context).showMaterialBanner(
+                                MaterialBanner(
+                                  padding: const EdgeInsets.all(16),
+                                  content: const Text(
+                                    'This tournament has already started.',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  backgroundColor: Colors.redAccent,
+                                  actions: [
+                                    TextButton(
+                                      child: const Text('DISMISS',
+                                          style: TextStyle(
+                                              color: Colors.white, fontWeight: FontWeight.bold)),
+                                      onPressed: () => ScaffoldMessenger.of(context)
+                                          .hideCurrentMaterialBanner(),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
                           } else {
                             ScaffoldMessenger.of(context).showMaterialBanner(
                               MaterialBanner(
