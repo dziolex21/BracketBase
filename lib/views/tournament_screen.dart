@@ -84,7 +84,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
         ),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.only(left: 16, right:16, top:0,bottom: 16),
             child: Text(
               _error!,
               style: const TextStyle(color: Colors.white, fontSize: 16),
@@ -119,7 +119,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
 
     // totalSlots is the "next power of two" of the TOTAL number of contestants
     final totalSlots = _nextPowerOfTwo(max(1, totalContestants));
-
+    const double horizontalPadding = 16.0;
 
 
     return WillPopScope(
@@ -203,56 +203,91 @@ class _RoundColumn extends StatelessWidget {
   final List<Map<String, dynamic>> players;
   final int totalSlots;
   final int roundIndex;
+  final double horizontalPadding;
 
   const _RoundColumn({
     required this.roundName,
     required this.players,
     required this.totalSlots,
     required this.roundIndex,
+    required this.horizontalPadding,
   });
+
+  int _getRoundCount(int slots) {
+    if (slots <= 1) return 1;
+    return (log(slots) / log(2)).ceil() + 1;
+  }
 
   @override
   Widget build(BuildContext context) {
-    const double totalHeight = 800; // Total "canvas" for positioning
-    const double titleTopPadding = 1;
-    const double cardsTopOffset = 40;
+    const double totalHeight = 900;
+    const double titleTopPadding = 2;
+    const double cardsTopOffset = 40; // Offset for all cards
+
+    const double lineSpace = 40;
+    const double strokeWidth = 2.0;
+    final Color lineColor = AppColors.purple1;
 
     final int slotsInThisRound = (totalSlots / pow(2, roundIndex)).ceil();
 
-    // 1. Calculate how much space is available for 1 slot
     final double availableSpacePerSlot =
         (totalHeight - cardsTopOffset) / slotsInThisRound;
-
-    // 2. Calculate the card height (85% of the space) to have some padding
     final double calculatedCardHeight = availableSpacePerSlot * 0.85;
-
-    // 3. Limit: not less than 30px (for 1/32) and not more than 100px (for 1/2)
     final double finalCardHeight = calculatedCardHeight.clamp(30.0, 100.0);
 
-    // Card width is now dependent on the card height (with a 1.5 ratio)
-    // It also has min/max limits to avoid being too thin or too wide
     final double cardWidth = (finalCardHeight * 1.5).clamp(80.0, 150.0);
+    final double columnWidth = cardWidth + lineSpace;
 
+    // 1. Create positions for ALL slots
     final List<double> positions = List.generate(
       slotsInThisRound,
           (i) => (i * 2 + 1) / (2 * slotsInThisRound),
     );
 
+    // 2. Calculate the number of pairs to draw
+    // We need to draw lines only for pairs that contain at least one player.
+    final int pairsToDraw = (players.length / 2).ceil();
+    final int positionsToKeep = pairsToDraw * 2;
+
+    // Trim the list of positions to exclude completely empty pairs at the end
+    final List<double> positionsForDrawing = (positionsToKeep >= slotsInThisRound)
+        ? positions
+        : positions.sublist(0, positionsToKeep);
+    // -----------------------------------------------------------------
+
     return SizedBox(
-      width: cardWidth,
+      width: columnWidth,
       height: totalHeight,
-      child: Stack( // Use a variable
+      child: Stack(
         clipBehavior: Clip.none,
         children: [
+          // CustomPainter for lines
+          if (roundIndex < _getRoundCount(totalSlots) - 1)
+            CustomPaint(
+              size: Size(columnWidth, totalHeight),
+              painter: BracketPainter(
+                // Pass the trimmed list
+                positions: positionsForDrawing,
+                totalHeight: totalHeight,
+                cardWidth: cardWidth,
+                lineLength: lineSpace,
+                lineColor: lineColor,
+                strokeWidth: strokeWidth,
+                cardsTopOffset: cardsTopOffset,
+                horizontalPadding: horizontalPadding,
+              ),
+            ),
+
+          // Round title in a container (fixed left: 0 position)
           Positioned(
             top: titleTopPadding,
             left: 0,
-            right: 0,
             child: Container(
-              padding: const EdgeInsets.only(left: 12, right:12, top:2,bottom: 6),
+              width: cardWidth,
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
               decoration: BoxDecoration(
                 color: AppColors.purple4,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
                 child: Text(
@@ -266,16 +301,17 @@ class _RoundColumn extends StatelessWidget {
               ),
             ),
           ),
+
+          // Contestant cards
           for (int i = 0; i < slotsInThisRound; i++)
             Positioned(
-              top: (totalHeight * positions[i] - finalCardHeight / 2) + cardsTopOffset,
+              // Cards are also aligned to left: 0
               left: 0,
-              right: 0,
+              top: (totalHeight * positions[i] - finalCardHeight / 2) + cardsTopOffset,
               child: (i < players.length)
                   ? _ContestantCard(
                 name: players[i]['name'] ?? '???',
                 picture: players[i]['picture'] ?? '',
-                // Pass dynamic height and fixed width
                 height: finalCardHeight,
                 width: cardWidth,
               )
@@ -378,8 +414,6 @@ class _ContestantCard extends StatelessWidget {
     );
   }
 }
-<<<<<<< HEAD
-=======
 
 class BracketPainter extends CustomPainter {
   final List<double> positions;
@@ -434,4 +468,3 @@ class BracketPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
->>>>>>> main
