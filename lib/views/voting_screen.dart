@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tournament_app/configs/color_data.dart';
 
-bool hasVoted = false;
-
 class VotingScreen extends StatefulWidget {
   final String gameId;
   final bool isHost;
@@ -18,25 +16,51 @@ class _VotingScreenState extends State<VotingScreen> {
   DocumentReference<Map<String, dynamic>> get docRef =>
       FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
 
+  // State variables to track the user's vote locally
+  bool _userHasVoted = false;
+  String? _selectedOptionKey;
+
   @override
   void initState() {
     super.initState();
     if (widget.isHost) {
-      _resetVotes();
+      _resetTournamentVotes();
     }
   }
 
-  /// 🔁 Resetuje dane głosowania w Firestore i lokalnie
-  Future<void> _resetVotes() async {
-    hasVoted = false;
-    _VoteOptionCardState.selectedOption = null;
+  /// 🔁 Reset tournament votes in Firestore (Host only)
+  Future<void> _resetTournamentVotes() async {
+    // Also reset local state for the host
+    setState(() {
+      _userHasVoted = false;
+      _selectedOptionKey = null;
+    });
 
-    // Użyj `merge: true`, aby zaktualizować dokument bez usuwania istniejących pól,
-    // takich jak `playersList`.
-    await docRef.set({
+    await docRef.update({
       'optionA': 0,
       'optionB': 0,
-    }, SetOptions(merge: true));
+    });
+  }
+
+  /// Handles the user's vote action
+  void _handleVote(String optionKey) {
+    if (_userHasVoted) {
+      return; // Prevent multiple votes from the same user
+    }
+
+    setState(() {
+      _userHasVoted = true;
+      _selectedOptionKey = optionKey;
+    });
+
+    // Run a transaction to safely update the vote count
+    FirebaseFirestore.instance.runTransaction((transaction) async {
+      final snapshot = await transaction.get(docRef);
+      if (!snapshot.exists) return;
+
+      final currentVotes = snapshot.data()![optionKey] ?? 0;
+      transaction.update(docRef, {optionKey: currentVotes + 1});
+    });
   }
 
   @override
@@ -56,6 +80,7 @@ class _VotingScreenState extends State<VotingScreen> {
             final expectedVotes = players.length;
 
             if (expectedVotes == 0) {
+              // This might happen temporarily if the lobby data is still loading
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -63,7 +88,7 @@ class _VotingScreenState extends State<VotingScreen> {
             final votesB = data['optionB'] ?? 0;
             final totalVotes = votesA + votesB;
 
-            // ✅ Jeśli wszyscy zagłosowali -> przejście do wyników
+            // ✅ If everyone has voted -> navigate to results
             if (totalVotes >= expectedVotes) {
               Future.microtask(() {
                 if (mounted) {
@@ -80,6 +105,7 @@ class _VotingScreenState extends State<VotingScreen> {
                   );
                 }
               });
+              // Show a loader while navigating
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -96,7 +122,7 @@ class _VotingScreenState extends State<VotingScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Sekcja głosowania
+                // Voting section
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Row(
@@ -106,21 +132,21 @@ class _VotingScreenState extends State<VotingScreen> {
                         title: 'Option A',
                         imagePath: 'assets/placeholder_image.png',
                         votes: votesA,
-                        optionKey: 'optionA',
-                        gameId: widget.gameId,
+                        isSelected: _selectedOptionKey == 'optionA',
+                        onTap: () => _handleVote('optionA'),
                       ),
                       VoteOptionCard(
                         title: 'Option B',
                         imagePath: 'assets/placeholder_image.png',
                         votes: votesB,
-                        optionKey: 'optionB',
-                        gameId: widget.gameId,
+                        isSelected: _selectedOptionKey == 'optionB',
+                        onTap: () => _handleVote('optionB'),
                       ),
                     ],
                   ),
                 ),
 
-                // Licznik
+                // Counter
                 Padding(
                   padding: const EdgeInsets.only(bottom: 40, top: 20),
                   child: Text(
@@ -141,62 +167,34 @@ class _VotingScreenState extends State<VotingScreen> {
   }
 }
 
-class VoteOptionCard extends StatefulWidget {
+// VoteOptionCard is now a StatelessWidget
+class VoteOptionCard extends StatelessWidget {
   final String title;
   final String imagePath;
   final int votes;
-  final String optionKey;
-  final String gameId;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   const VoteOptionCard({
     super.key,
     required this.title,
     required this.imagePath,
     required this.votes,
-    required this.optionKey,
-    required this.gameId
+    required this.isSelected,
+    required this.onTap,
   });
 
   @override
-  State<VoteOptionCard> createState() => _VoteOptionCardState();
-}
-
-class _VoteOptionCardState extends State<VoteOptionCard> {
-  DocumentReference<Map<String, dynamic>> get docRef => FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
-  static String? selectedOption;
-
-  void vote() async {
-    if (hasVoted) return;
-
-    setState(() {
-      hasVoted = true;
-      selectedOption = widget.optionKey;
-    });
-
-    await FirebaseFirestore.instance.runTransaction((transaction) async {
-      final snapshot = await transaction.get(docRef);
-      if (!snapshot.exists) return;
-
-      final data = snapshot.data()!;
-      transaction.update(docRef, {
-        widget.optionKey: (data[widget.optionKey] ?? 0) + 1,
-      });
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final bool isSelected = selectedOption == widget.optionKey;
-
     return Expanded(
       child: GestureDetector(
-        onTap: vote,
+        onTap: onTap,
         child: Container(
           height: 300,
           decoration: BoxDecoration(
             color: isSelected
-                ? AppColors.purple1 // jaśniejszy kolor przy wybraniu
-                : AppColors.purple3, // standardowy kolor
+                ? AppColors.purple1 // Lighter color when selected
+                : AppColors.purple3, // Standard color
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isSelected ? Colors.white : Colors.transparent,
@@ -217,7 +215,7 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  widget.title,
+                  title,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
@@ -227,7 +225,7 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
               ),
               Expanded(
                 child: Center(
-                  child: Image.asset(widget.imagePath),
+                  child: Image.asset(imagePath),
                 ),
               ),
               Container(
@@ -241,7 +239,7 @@ class _VoteOptionCardState extends State<VoteOptionCard> {
                   ),
                 ),
                 child: Text(
-                  'Votes: ${widget.votes}',
+                  'Votes: $votes',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.white),
                 ),
