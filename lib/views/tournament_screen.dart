@@ -131,7 +131,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
             if (data != null && data['isVotingStarted'] == true) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
-                  Navigator.push(
+                  Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (context) => VotingScreen(gameId: widget.tournamentId, isHost: widget.isHost,)),
                   );
