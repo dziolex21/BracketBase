@@ -1,6 +1,6 @@
-# tournament_app
+# BracketBase
 
-Tournament app for Kaliop
+BracketBase app for Kaliop
 
 ## Getting Started
 
