@@ -3,25 +3,21 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 class AppSettings {
-  bool imagesEnabled;
   int selectedTiebreaker;
 
   AppSettings({
-    this.imagesEnabled = true,
     this.selectedTiebreaker = 0,
   });
 
   factory AppSettings.fromJson(String jsonString) {
     final Map<String, dynamic> json = jsonDecode(jsonString);
     return AppSettings(
-      imagesEnabled: json['imagesEnabled'] ?? true,
       selectedTiebreaker: json['selectedTiebreaker'] ?? 0,
     );
   }
 
   String toJson() {
     final Map<String, dynamic> data = {
-      'imagesEnabled': imagesEnabled,
       'selectedTiebreaker': selectedTiebreaker,
     };
     return jsonEncode(data);
@@ -45,9 +41,9 @@ class AppSettings {
         return AppSettings.fromJson(contents);
       }
     } catch (e) {
-      // If there's an error, we'll fall back to default settings.
+      // W przypadku błędu zwracamy ustawienia domyślne
     }
-    return AppSettings(); // Return default settings if file doesn't exist or on error.
+    return AppSettings(); // Zwróć domyślne ustawienia, jeśli plik nie istnieje lub wystąpi błąd
   }
 
   Future<void> save() async {
@@ -55,7 +51,7 @@ class AppSettings {
       final file = await _localFile;
       await file.writeAsString(toJson());
     } catch (e) {
-      // Handle or log the error as needed.
+      // Obsłuż błąd według potrzeb
     }
   }
 }
