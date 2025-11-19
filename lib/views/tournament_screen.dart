@@ -11,7 +11,8 @@ import 'package:tournament_app/views/voting_screen.dart';
 class TournamentScreen extends StatefulWidget {
   final bool isHost;
   final String tournamentId;
-  const TournamentScreen({super.key, this.isHost = false, this.tournamentId = ""});
+  const TournamentScreen(
+      {super.key, this.isHost = false, this.tournamentId = ""});
 
   @override
   State<TournamentScreen> createState() => _TournamentScreenState();
@@ -22,10 +23,22 @@ class _TournamentScreenState extends State<TournamentScreen> {
   bool _isLoading = true;
   String? _error;
 
+  // NOWE: Kontrolery dla okna dialogowego
+  final TextEditingController _nameAController = TextEditingController();
+  final TextEditingController _nameBController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _loadBracket();
+  }
+
+  // NOWE: Pamiętaj o zwolnieniu kontrolerów
+  @override
+  void dispose() {
+    _nameAController.dispose();
+    _nameBController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadBracket() async {
@@ -61,6 +74,90 @@ class _TournamentScreenState extends State<TournamentScreen> {
     return power;
   }
 
+  // NOWA: Metoda do aktualizacji Firebase i rozpoczęcia głosowania
+  Future<void> _startVoting(String nameA, String nameB) async {
+    await FirebaseFirestore.instance
+        .collection('tournaments')
+        .doc(widget.tournamentId)
+        .update({
+      'isVotingStarted': true,
+      'optionAName': nameA, // Zapisz nazwę A
+      'optionBName': nameB, // Zapisz nazwę B
+      'optionA': 0, // Zresetuj głosy
+      'optionB': 0, // Zresetuj głosy
+      'tieOption': '', // Zresetuj tiebreaker
+    });
+  }
+
+  // NOWA: Metoda pokazująca okno dialogowe
+  void _showStartVotingDialog() {
+    // Wyczyść poprzedni tekst
+    _nameAController.clear();
+    _nameBController.clear();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: AppColors.purple3,
+          title: const Text('Start New Vote',
+              style: TextStyle(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _nameAController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Contestant A Name',
+                  labelStyle: TextStyle(color: AppColors.purple1),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.purple1),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white),
+                  ),
+                ),
+              ),
+              TextField(
+                controller: _nameBController,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Contestant B Name',
+                  labelStyle: TextStyle(color: AppColors.purple1),
+                  enabledBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: AppColors.purple1),
+                  ),
+                  focusedBorder: UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.purple1),
+              child: const Text('Start Vote', style: TextStyle(color: Colors.white)),
+              onPressed: () {
+                final String nameA = _nameAController.text.trim();
+                final String nameB = _nameBController.text.trim();
+                if (nameA.isNotEmpty && nameB.isNotEmpty) {
+                  Navigator.pop(context); // Zamknij dialog
+                  _startVoting(nameA, nameB); // Rozpocznij głosowanie
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -85,7 +182,8 @@ class _TournamentScreenState extends State<TournamentScreen> {
         ),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.only(left: 16, right:16, top:0,bottom: 16),
+            padding:
+            const EdgeInsets.only(left: 16, right: 16, top: 0, bottom: 16),
             child: Text(
               _error!,
               style: const TextStyle(color: Colors.white, fontSize: 16),
@@ -122,9 +220,11 @@ class _TournamentScreenState extends State<TournamentScreen> {
     final totalSlots = _nextPowerOfTwo(max(1, totalContestants));
     const double horizontalPadding = 16.0;
 
-
     return StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance.collection('tournaments').doc(widget.tournamentId).snapshots(),
+        stream: FirebaseFirestore.instance
+            .collection('tournaments')
+            .doc(widget.tournamentId)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>?;
@@ -133,7 +233,11 @@ class _TournamentScreenState extends State<TournamentScreen> {
                 if (mounted) {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => VotingScreen(gameId: widget.tournamentId, isHost: widget.isHost,)),
+                    MaterialPageRoute(
+                        builder: (context) => VotingScreen(
+                          gameId: widget.tournamentId,
+                          isHost: widget.isHost,
+                        )),
                   );
                 }
               });
@@ -163,10 +267,12 @@ class _TournamentScreenState extends State<TournamentScreen> {
                           children: [
                             for (int i = 0; i < rounds.length; i++)
                               Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: horizontalPadding),
                                 child: _RoundColumn(
                                   roundName: rounds[i],
-                                  players: List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
+                                  players: List<Map<String, dynamic>>.from(
+                                      bracket[rounds[i]] ?? []),
                                   totalSlots: totalSlots,
                                   roundIndex: i,
                                   horizontalPadding: horizontalPadding,
@@ -184,15 +290,12 @@ class _TournamentScreenState extends State<TournamentScreen> {
                       child: SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(
-                          onPressed: () {
-                            FirebaseFirestore.instance
-                                .collection('tournaments')
-                                .doc(widget.tournamentId)
-                                .update({'isVotingStarted': true});
-                          },
+                          // ZMIENIONE: onPressed teraz wywołuje okno dialogowe
+                          onPressed: _showStartVotingDialog,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.purple1,
-                            padding: const EdgeInsets.symmetric(vertical: 16.0),
+                            padding:
+                            const EdgeInsets.symmetric(vertical: 16.0),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12.0),
                             ),
@@ -212,11 +315,11 @@ class _TournamentScreenState extends State<TournamentScreen> {
               ),
             ),
           );
-        }
-    );
+        });
   }
 }
 
+// ... (reszta pliku, _RoundColumn, _ContestantCard, BracketPainter, pozostaje bez zmian) ...
 class _RoundColumn extends StatelessWidget {
   final String roundName;
   final List<Map<String, dynamic>> players;
@@ -326,7 +429,8 @@ class _RoundColumn extends StatelessWidget {
             Positioned(
               // Cards are also aligned to left: 0
               left: 0,
-              top: (totalHeight * positions[i] - finalCardHeight / 2) + cardsTopOffset,
+              top: (totalHeight * positions[i] - finalCardHeight / 2) +
+                  cardsTopOffset,
               child: (i < players.length)
                   ? _ContestantCard(
                 name: players[i]['name'] ?? '???',
@@ -337,7 +441,10 @@ class _RoundColumn extends StatelessWidget {
                   : Opacity(
                 opacity: 0.0,
                 child: _ContestantCard(
-                    name: 'empty', picture: '', height: finalCardHeight, width: cardWidth),
+                    name: 'empty',
+                    picture: '',
+                    height: finalCardHeight,
+                    width: cardWidth),
               ),
             ),
         ],
@@ -367,11 +474,14 @@ class _ContestantCard extends StatelessWidget {
     final double dynamicNameFontSize = (height * 0.15).clamp(8.0, 14.0);
     final double imageHeight = height * 0.55;
     // The size of the "?" is taken as 50% of the image height
-    final double dynamicFallbackFontSize = (imageHeight * 0.5).clamp(12.0, 28.0);
+    final double dynamicFallbackFontSize =
+    (imageHeight * 0.5).clamp(12.0, 28.0);
 
     Widget _buildFallback() {
       return Center(
-        child: Text('?', style: TextStyle(fontSize: dynamicFallbackFontSize, color: Colors.white)),
+        child: Text('?',
+            style: TextStyle(
+                fontSize: dynamicFallbackFontSize, color: Colors.white)),
       );
     }
     // ----------------------------------------------------
@@ -425,7 +535,8 @@ class _ContestantCard extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             name,
-            style: TextStyle(color: Colors.white, fontSize: dynamicNameFontSize),
+            style:
+            TextStyle(color: Colors.white, fontSize: dynamicNameFontSize),
             overflow: TextOverflow.ellipsis,
           ),
         ],
