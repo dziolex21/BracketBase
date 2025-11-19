@@ -33,6 +33,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
 
   // Mapping logic for bracket progression
   final Map<String, String> _roundProgression = {
+    '1/32': '1/16',
     '1/16': '1/8',
     '1/8': '1/4',
     '1/4': '1/2',
@@ -89,7 +90,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
   Map<String, dynamic>? _findNextReadyMatch() {
     if (_bracket == null) return null;
 
-    final List<String> roundOrder = ['1/16', '1/8', '1/4', '1/2', '1'];
+    final List<String> roundOrder = ['1/32', '1/16', '1/8', '1/4', '1/2', '1'];
 
     for (String roundName in roundOrder) {
       if (!_bracket!.containsKey(roundName)) continue;
@@ -218,7 +219,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
       );
     }
 
-    // --- RESTORED BRACKET CALCULATION LOGIC ---
     if (_bracket == null) return const Scaffold(backgroundColor: AppColors.purple5, body: Center(child: Text("No Data", style: TextStyle(color: Colors.white))));
 
     final rounds = _bracket!.keys.toList();
@@ -233,7 +233,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
 
     final totalSlots = _nextPowerOfTwo(max(1, totalContestants));
     const double horizontalPadding = 16.0;
-    // ------------------------------------------
 
     return StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance.collection('tournaments').doc(widget.tournamentId).snapshots(),
@@ -247,7 +246,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
               // 1. Sync Bracket
               if (data.containsKey('bracketData')) {
                 final String serverBracketStr = data['bracketData'];
-                // Simple check to avoid infinite loops if data is identical
                 if (jsonEncode(_bracket) != serverBracketStr) {
                   _updateLocalBracket(serverBracketStr);
                 }
@@ -312,9 +310,11 @@ class _TournamentScreenState extends State<TournamentScreen> {
                                 child: _RoundColumn(
                                   roundName: rounds[i],
                                   players: List<Map<String, dynamic>>.from(_bracket![rounds[i]] ?? []),
-                                  totalSlots: totalSlots, // Passing dynamic totalSlots
+                                  totalSlots: totalSlots,
                                   roundIndex: i,
                                   horizontalPadding: horizontalPadding,
+                                  // --- ДОБАВЛЕНО ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+                                  isLastRound: i == rounds.length - 1,
                                 ),
                               ),
                           ],
@@ -380,14 +380,13 @@ class _TournamentScreenState extends State<TournamentScreen> {
   }
 }
 
-// --- FULLY RESTORED UI CLASSES ---
-
 class _RoundColumn extends StatelessWidget {
   final String roundName;
   final List<Map<String, dynamic>> players;
   final int totalSlots;
   final int roundIndex;
   final double horizontalPadding;
+  final bool isLastRound;
 
   const _RoundColumn({
     required this.roundName,
@@ -395,6 +394,7 @@ class _RoundColumn extends StatelessWidget {
     required this.totalSlots,
     required this.roundIndex,
     required this.horizontalPadding,
+    required this.isLastRound,
   });
 
   int _getRoundCount(int slots) {
@@ -439,7 +439,7 @@ class _RoundColumn extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          if (roundIndex < _getRoundCount(totalSlots) - 1)
+          if (!isLastRound)
             CustomPaint(
               size: Size(columnWidth, totalHeight),
               painter: BracketPainter(
