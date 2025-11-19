@@ -238,13 +238,15 @@ class _TournamentLobbyState extends State<TournamentLobby> {
                               }
 
                               // 2. NAVIGATE TO THE TOURNAMENT SCREEN
+                              // Find this part in your TournamentLobby
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
                                     builder: (context) => TournamentScreen(
-                                      // PASS ID and HOST status!
                                       tournamentId: widget.lobbyId,
                                       isHost: widget.isHost,
+                                      // ADD THIS LINE:
+                                      currentPlayerName: _playerName,
                                     )),
                               );
                             }

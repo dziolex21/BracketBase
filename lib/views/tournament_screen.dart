@@ -11,7 +11,15 @@ import 'package:tournament_app/views/voting_screen.dart';
 class TournamentScreen extends StatefulWidget {
   final bool isHost;
   final String tournamentId;
-  const TournamentScreen({super.key, this.isHost = false, this.tournamentId = ""});
+  // Added to handle removing the specific player from DB when leaving
+  final String? currentPlayerName;
+
+  const TournamentScreen({
+    super.key,
+    this.isHost = false,
+    this.tournamentId = "",
+    this.currentPlayerName,
+  });
 
   @override
   State<TournamentScreen> createState() => _TournamentScreenState();
@@ -55,6 +63,70 @@ class _TournamentScreenState extends State<TournamentScreen> {
     }
   }
 
+  // --- NEW: LEAVE LOGIC START ---
+  Future<void> _handleLeaveTournament() async {
+    final docRef = FirebaseFirestore.instance
+        .collection('tournaments')
+        .doc(widget.tournamentId);
+
+    try {
+      if (widget.isHost) {
+        // If Host leaves, delete the tournament doc entirely
+        await docRef.delete();
+      } else {
+        // If Guest leaves, remove them from the list
+        if (widget.currentPlayerName != null) {
+          await docRef.update({
+            'playersList': FieldValue.arrayRemove([widget.currentPlayerName])
+          });
+        }
+      }
+
+      if (mounted) {
+        // Pop until we reach the main menu (or previous valid screen)
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error leaving tournament: $e"))
+        );
+      }
+    }
+  }
+
+  void _showLeaveConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.purple4,
+          title: const Text("Leave Tournament?", style: TextStyle(color: Colors.white)),
+          content: Text(
+            widget.isHost
+                ? "As the host, leaving will end the tournament for everyone."
+                : "Are you sure you want to leave this tournament?",
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Cancel", style: TextStyle(color: Colors.white54)),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text("Leave", style: TextStyle(color: AppColors.purple1, fontWeight: FontWeight.bold)),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close dialog
+                _handleLeaveTournament(); // Trigger logic
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+  // --- LEAVE LOGIC END ---
+
   int _nextPowerOfTwo(int n) {
     int power = 1;
     while (power < n) power <<= 1;
@@ -86,10 +158,21 @@ class _TournamentScreenState extends State<TournamentScreen> {
         body: Center(
           child: Padding(
             padding: const EdgeInsets.only(left: 16, right:16, top:0,bottom: 16),
-            child: Text(
-              _error!,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              textAlign: TextAlign.center,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  _error!,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.purple1),
+                  child: const Text("Go Back", style: TextStyle(color: Colors.white)),
+                )
+              ],
             ),
           ),
         ),
@@ -101,15 +184,12 @@ class _TournamentScreenState extends State<TournamentScreen> {
     final firstRoundPlayers =
     List<Map<String, dynamic>>.from(bracket[rounds.first] ?? []);
 
-    // Count the total number of contestants
     int totalContestants = firstRoundPlayers.length;
 
-    // If there is a 2nd round, look for byes in it
     if (rounds.length > 1) {
       final List<Map<String, dynamic>> secondRoundSlots =
       List<Map<String, dynamic>>.from(bracket[rounds[1]] ?? []);
 
-      // "Byes" are participants in the 2nd round with a non-empty name
       final int byes = secondRoundSlots
           .where((player) =>
       player['name'] != null && (player['name'] as String).isNotEmpty)
@@ -118,17 +198,20 @@ class _TournamentScreenState extends State<TournamentScreen> {
       totalContestants += byes;
     }
 
-    // totalSlots is the "next power of two" of the TOTAL number of contestants
     final totalSlots = _nextPowerOfTwo(max(1, totalContestants));
     const double horizontalPadding = 16.0;
-
 
     return StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance.collection('tournaments').doc(widget.tournamentId).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>?;
-            if (data != null && data['isVotingStarted'] == true) {
+            // Check if tournament was deleted (Host left)
+            if (data == null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) Navigator.of(context).pop();
+              });
+            } else if (data['isVotingStarted'] == true) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
                   Navigator.pushReplacement(
@@ -138,15 +221,34 @@ class _TournamentScreenState extends State<TournamentScreen> {
                 }
               });
             }
+          } else if (snapshot.connectionState == ConnectionState.active && !snapshot.hasData) {
+            // Document deleted
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) Navigator.of(context).pop();
+            });
           }
+
           return WillPopScope(
-            onWillPop: () async => false,
+            // Prevent hardware back button, force use of our Exit button
+            onWillPop: () async {
+              _showLeaveConfirmationDialog();
+              return false;
+            },
             child: Scaffold(
               backgroundColor: AppColors.purple5,
               appBar: AppBar(
                 title: const Text('Tournament'),
                 backgroundColor: AppColors.purple3,
                 automaticallyImplyLeading: false,
+                // --- NEW: EXIT BUTTON ---
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.logout_rounded, color: AppColors.purple1),
+                    tooltip: "Leave Tournament",
+                    onPressed: _showLeaveConfirmationDialog,
+                  ),
+                ],
+                // ------------------------
               ),
               body: Column(
                 children: [
@@ -217,6 +319,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
   }
 }
 
+// ... [Rest of the _RoundColumn, _ContestantCard, and BracketPainter classes remain exactly the same] ...
 class _RoundColumn extends StatelessWidget {
   final String roundName;
   final List<Map<String, dynamic>> players;
@@ -257,22 +360,17 @@ class _RoundColumn extends StatelessWidget {
     final double cardWidth = (finalCardHeight * 1.5).clamp(80.0, 150.0);
     final double columnWidth = cardWidth + lineSpace;
 
-    // 1. Create positions for ALL slots
     final List<double> positions = List.generate(
       slotsInThisRound,
           (i) => (i * 2 + 1) / (2 * slotsInThisRound),
     );
 
-    // 2. Calculate the number of pairs to draw
-    // We need to draw lines only for pairs that contain at least one player.
     final int pairsToDraw = (players.length / 2).ceil();
     final int positionsToKeep = pairsToDraw * 2;
 
-    // Trim the list of positions to exclude completely empty pairs at the end
     final List<double> positionsForDrawing = (positionsToKeep >= slotsInThisRound)
         ? positions
         : positions.sublist(0, positionsToKeep);
-    // -----------------------------------------------------------------
 
     return SizedBox(
       width: columnWidth,
@@ -280,12 +378,10 @@ class _RoundColumn extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // CustomPainter for lines
           if (roundIndex < _getRoundCount(totalSlots) - 1)
             CustomPaint(
               size: Size(columnWidth, totalHeight),
               painter: BracketPainter(
-                // Pass the trimmed list
                 positions: positionsForDrawing,
                 totalHeight: totalHeight,
                 cardWidth: cardWidth,
@@ -297,7 +393,6 @@ class _RoundColumn extends StatelessWidget {
               ),
             ),
 
-          // Round title in a container (fixed left: 0 position)
           Positioned(
             top: titleTopPadding,
             left: 0,
@@ -321,10 +416,8 @@ class _RoundColumn extends StatelessWidget {
             ),
           ),
 
-          // Contestant cards
           for (int i = 0; i < slotsInThisRound; i++)
             Positioned(
-              // Cards are also aligned to left: 0
               left: 0,
               top: (totalHeight * positions[i] - finalCardHeight / 2) + cardsTopOffset,
               child: (i < players.length)
@@ -359,14 +452,10 @@ class _ContestantCard extends StatelessWidget {
     required this.width,
   });
 
-  // Note: _buildFallback is now defined inside build()
-
   @override
   Widget build(BuildContext context) {
-    // Calculating dynamic font sizes
     final double dynamicNameFontSize = (height * 0.15).clamp(8.0, 14.0);
     final double imageHeight = height * 0.55;
-    // The size of the "?" is taken as 50% of the image height
     final double dynamicFallbackFontSize = (imageHeight * 0.5).clamp(12.0, 28.0);
 
     Widget _buildFallback() {
@@ -374,7 +463,6 @@ class _ContestantCard extends StatelessWidget {
         child: Text('?', style: TextStyle(fontSize: dynamicFallbackFontSize, color: Colors.white)),
       );
     }
-    // ----------------------------------------------------
 
     final double imageWidth = imageHeight;
 
@@ -438,7 +526,7 @@ class BracketPainter extends CustomPainter {
   final List<double> positions;
   final double totalHeight;
   final double cardWidth;
-  final double lineLength; // This is the "space" for the line (40px)
+  final double lineLength;
   final Color lineColor;
   final double strokeWidth;
   final double cardsTopOffset;
@@ -463,23 +551,16 @@ class BracketPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     for (int i = 0; i < positions.length - 1; i += 2) {
-      //  FIX 1: Y-coordinates now po
       final double Y1 = (totalHeight * positions[i]) + cardsTopOffset;
       final double Y2 = (totalHeight * positions[i + 1]) + cardsTopOffset;
-
       final double Ymid = (Y1 + Y2) / 2;
-
       final double Xstart = cardWidth;
       final double Xvert = cardWidth + lineLength / 2;
-
       final double Xend = cardWidth + lineLength + (horizontalPadding * 2);
 
       canvas.drawLine(Offset(Xstart, Y1), Offset(Xvert, Y1), paint);
-
       canvas.drawLine(Offset(Xstart, Y2), Offset(Xvert, Y2), paint);
-
       canvas.drawLine(Offset(Xvert, Y1), Offset(Xvert, Y2), paint);
-
       canvas.drawLine(Offset(Xvert, Ymid), Offset(Xend, Ymid), paint);
     }
   }
