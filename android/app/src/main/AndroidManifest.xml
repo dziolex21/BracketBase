@@ -1,8 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="tournament_app"
+        android:label="BracketBase"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/bracketbase_logo">
         <activity
             android:name=".MainActivity"
             android:exported="true"
