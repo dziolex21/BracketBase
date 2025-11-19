@@ -243,7 +243,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
                 // --- NEW: EXIT BUTTON ---
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.logout_rounded, color: AppColors.purple1),
+                    icon: const Icon(Icons.logout_rounded, color: Colors.white),
                     tooltip: "Leave Tournament",
                     onPressed: _showLeaveConfirmationDialog,
                   ),
