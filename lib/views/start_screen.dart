@@ -255,7 +255,7 @@ class HomeScreen extends StatelessWidget {
             ),
             child: const Center(
               child: Text(
-                'App Name',
+                'BracketBase',
                 style: TextStyle(
                   fontSize: 48,
                   fontWeight: FontWeight.bold,
