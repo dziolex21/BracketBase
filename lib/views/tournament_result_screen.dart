@@ -15,10 +15,10 @@ class TournamentResultsScreen extends StatefulWidget {
 class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
   bool _isLoading = true;
 
-  // Данные для отображения. Если name пустое — значит место вакантно.
+  // Data for display. If name is empty, the spot is vacant.
   Map<String, dynamic> _winner = {'name': '', 'picture': ''};
   Map<String, dynamic> _runnerUp = {'name': '', 'picture': ''};
-  List<Map<String, dynamic>> _semiFinalLosers = []; // 3-4 места
+  List<Map<String, dynamic>> _semiFinalLosers = []; // 3-4 places
 
   @override
   void initState() {
@@ -39,20 +39,20 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
       final String jsonString = await jsonFile.readAsString();
       final Map<String, dynamic> bracket = jsonDecode(jsonString);
 
-      // --- 1. ПОБЕДИТЕЛЬ (Золото) ---
-      // Берем из раунда "1"
+      // --- 1. WINNER (Gold) ---
+      // Taken from round "1"
       final List<dynamic> round1 = bracket['1'] ?? [];
       if (round1.isNotEmpty && round1[0]['name'] != '') {
         _winner = round1[0];
       }
 
-      // --- 2. ВТОРОЕ МЕСТО (Серебро) ---
-      // Это тот, кто есть в "1/2", но кого НЕТ в "1".
-      // Но мы можем определить его ТОЛЬКО если победитель уже известен.
-      // Если победителя нет, значит финал еще не сыгран, и 2-е место тоже неизвестно.
+      // --- 2. SECOND PLACE (Silver) ---
+      // This is the one who is in "1/2" but NOT in "1".
+      // But we can only determine them if the winner is already known.
+      // If there's no winner, the final hasn't been played yet, and 2nd place is also unknown.
       if (_winner['name'] != '') {
         final List<dynamic> round1_2 = bracket['1/2'] ?? [];
-        // Ищем игрока в 1/2, чье имя не совпадает с победителем
+        // Search for a player in 1/2 whose name does not match the winner's
         final runnerUpEntry = round1_2.firstWhere(
               (p) => p['name'] != '' && p['name'] != _winner['name'],
           orElse: () => null,
@@ -62,34 +62,34 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
         }
       }
 
-      // --- 3. ТРЕТЬЕ-ЧЕТВЕРТОЕ МЕСТА (Бронза) ---
-      // Это те, кто был в "1/4", но НЕ попал в "1/2".
+      // --- 3. THIRD-FOURTH PLACES (Bronze) ---
+      // These are the ones who were in "1/4" but did NOT make it to "1/2".
       final List<dynamic> round1_4 = bracket['1/4'] ?? [];
       final List<dynamic> round1_2 = bracket['1/2'] ?? [];
 
-      // Собираем имена тех, кто прошел в полуфинал (в 1/2)
+      // Collect the names of those who advanced to the semifinals (to 1/2)
       final Set<String> promotedToSemiNames = round1_2
           .map((e) => e['name'] as String)
           .where((name) => name.isNotEmpty)
           .toSet();
 
-      // Фильтруем 1/4: берем тех, у кого есть имя И кого нет в списке прошедших
+      // Filter 1/4: take those who have a name AND are not in the list of promoted players
       final List<Map<String, dynamic>> losers = [];
       for (var player in round1_4) {
         final String name = player['name'] ?? '';
-        // Условие: Имя есть, и этого имени нет в следующем раунде
-        // НО! Если в следующем раунде (1/2) еще есть пустые слоты,
-        // мы не можем точно сказать, что этот человек вылетел (может он еще не сыграл).
-        // Поэтому показываем в списке только тех, кто точно вылетел,
-        // либо (для красоты) просто заполняем заглушками, если турнир в процессе.
+        // Condition: The name exists, and this name is not in the next round.
+        // BUT! If there are still empty slots in the next round (1/2),
+        // we can't be sure that this person has been eliminated (maybe they haven't played yet).
+        // Therefore, we only show those in the list who are definitely eliminated,
+        // or (for aesthetics) just fill with placeholders if the tournament is in progress.
 
         if (name.isNotEmpty && !promotedToSemiNames.contains(name)) {
-          // Проверяем, заполнен ли раунд 1/2 полностью.
-          // Если в 1/2 есть пустые слоты, возможно этот игрок просто еще не сыграл свой матч 1/4.
-          // Для упрощения: мы считаем бронзовыми призерами тех, кто не прошел дальше,
-          // ТОЛЬКО если мы уверены в составе 1/2.
+          // Check if the 1/2 round is fully populated.
+          // If there are empty slots in 1/2, this player might just not have played their 1/4 match yet.
+          // For simplicity: we consider those who did not advance as bronze medalists
+          // ONLY if we are certain about the composition of the 1/2 round.
 
-          // В рамках вашей задачи: давайте просто покажем тех, кто точно не прошел.
+          // For the purpose of this task: let's just show those who definitely did not advance.
           losers.add(player);
         }
       }
@@ -119,13 +119,13 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
         title: const Text("Tournament Standings"),
         backgroundColor: AppColors.purple3,
         centerTitle: true,
-        // Убираем кнопку назад по умолчанию, делаем свою "Home"
+        // Remove the default back button and create our own "Home" button
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.home_rounded, size: 30, color: Colors.white),
             onPressed: () {
-              // Возврат в самое начало
+              // Return to the very beginning
               Navigator.of(context).popUntil((route) => route.isFirst);
             },
           )
@@ -148,12 +148,12 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
             ),
             const SizedBox(height: 20),
 
-            // --- КАРТОЧКА ПОБЕДИТЕЛЯ (или заглушка) ---
+            // --- WINNER CARD (or placeholder) ---
             _buildWinnerDisplay(_winner),
 
             const SizedBox(height: 50),
 
-            // --- ТАБЛИЦА ЛИДЕРОВ ---
+            // --- LEADERBOARD ---
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -176,11 +176,11 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
                     ),
                   ),
 
-                  // 2-е Место (Серебро)
+                  // 2nd Place (Silver)
                   _buildRankRow(2, _runnerUp, const Color(0xFFC0C0C0)),
 
-                  // 3-е и 4-е Места (Бронза)
-                  // Если список пуст (начало турнира), покажем две заглушки
+                  // 3rd and 4th Places (Bronze)
+                  // If the list is empty (start of the tournament), show two placeholders
                   if (_semiFinalLosers.isEmpty) ...[
                     _buildRankRow(3, {'name': '', 'picture': ''}, const Color(0xFFCD7F32)),
                     _buildRankRow(3, {'name': '', 'picture': ''}, const Color(0xFFCD7F32)),
@@ -197,7 +197,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
     );
   }
 
-  // Виджет для Чемпиона (Большой)
+  // Widget for the Champion (Large)
   Widget _buildWinnerDisplay(Map<String, dynamic> player) {
     final String name = player['name'] ?? '';
     final String picture = player['picture'] ?? '';
@@ -207,7 +207,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
-        // Сияние (только если есть победитель)
+        // Glow (only if there is a winner)
         if (hasWinner)
           Container(
             width: 180,
@@ -224,15 +224,15 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
             ),
           ),
 
-        // Аватар или Заглушка
+        // Avatar or Placeholder
         Container(
           width: 160,
           height: 160,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.purple3, // Фон заглушки
+            color: AppColors.purple3, // Placeholder background
             border: Border.all(
-                color: hasWinner ? const Color(0xFFFFD700) : AppColors.purple2, // Золотая или блеклая рамка
+                color: hasWinner ? const Color(0xFFFFD700) : AppColors.purple2, // Golden or dim border
                 width: 6
             ),
           ),
@@ -241,14 +241,14 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
           ),
         ),
 
-        // Корона (только если есть победитель)
+        // Crown (only if there is a winner)
         if (hasWinner)
           const Positioned(
             top: -35,
             child: Text("👑", style: TextStyle(fontSize: 50)),
           ),
 
-        // Имя или "TBD"
+        // Name or "TBD"
         Positioned(
           bottom: -50,
           child: Container(
@@ -278,7 +278,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
     );
   }
 
-  // Виджет строки (2, 3 место)
+  // Row widget (2nd, 3rd place)
   Widget _buildRankRow(int rank, Map<String, dynamic> player, Color rankColor) {
     final String name = player['name'] ?? '';
     final String picture = player['picture'] ?? '';
@@ -293,7 +293,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
       ),
       child: Row(
         children: [
-          // Медалька
+          // Medal
           Container(
             width: 40,
             height: 40,
@@ -318,7 +318,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
           ),
           const SizedBox(width: 16),
 
-          // Аватар
+          // Avatar
           Container(
             width: 40,
             height: 40,
@@ -333,7 +333,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
           ),
           const SizedBox(width: 16),
 
-          // Имя
+          // Name
           Expanded(
             child: Text(
               isKnown ? name : "???",
@@ -350,7 +350,7 @@ class _TournamentResultsScreenState extends State<TournamentResultsScreen> {
   }
 
   Widget _buildImage(String path, {bool isSmall = false}) {
-    // Если пути нет или он пустой - показываем вопрос
+    // If the path is missing or empty - show a question mark
     if (path.isEmpty) {
       return Container(
         color: AppColors.purple4,
