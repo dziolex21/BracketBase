@@ -5,8 +5,7 @@ import 'package:tournament_app/configs/settings.dart';
 class TournamentSettings extends StatefulWidget {
   const TournamentSettings({super.key});
 
-  @override
-  State<TournamentSettings> createState() => _TournamentSettingsState();
+  @override  State<TournamentSettings> createState() => _TournamentSettingsState();
 }
 
 class _TournamentSettingsState extends State<TournamentSettings> {
