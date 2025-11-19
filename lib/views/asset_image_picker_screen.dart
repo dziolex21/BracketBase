@@ -1,60 +1,82 @@
 // lib/views/asset_image_picker_screen.dart
+
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:tournament_app/configs/color_data.dart';
 
-// --- Te listy MUSZĄ odpowiadać nazwom plików w Twoich folderach assets ---
-const List<String> animalImages = [
-  'assets/animals/Ananas.jpeg',
-  'assets/animals/Arbuz.jpg',
-  'assets/animals/Awocado.webp',
-  'assets/animals/Banany.jpg',
-  'assets/animals/Borówka.jpg',
-  'assets/animals/Brzoskwinia.jpg',
-  'assets/animals/Granat.jpg',
-  'assets/animals/Gruszka.jpg',
-  'assets/animals/Jabłko.jpg',
-  'assets/animals/Jeżyna.png',
-  'assets/animals/Kiwi.jpg',
-  'assets/animals/Liczi.jpg',
-  'assets/animals/Malinka.jpeg',
-  'assets/animals/Mango.jpg',
-  'assets/animals/Morela.webp',
-  'assets/animals/Pomarańcza.webp',
-  'assets/animals/Truskawka.png',
-  'assets/animals/Winogrona.jpg',
-  'assets/animals/Wiśnie.webp',
-  'assets/animals/Zapomniałem.png',
-  'assets/animals/Śliwka.png',
-];
-
-const List<String> avatarImages = [
-  'assets/avatars/Discord2.jpeg',
-  'assets/avatars/Discord3.jpeg',
-  'assets/avatars/Discord4.png',
-  'assets/avatars/Discord5.jpg',
-  'assets/avatars/Discord6.jpg',
-  'assets/avatars/Discord7.jpg',
-  'assets/avatars/Discord8.png',
-  'assets/avatars/Discord9.png',
-  'assets/avatars/Discord10.webp',
-  'assets/avatars/Discord11.jpeg',
-  'assets/avatars/Discord12.webp',
-  'assets/avatars/Discord13.webp',
-  'assets/avatars/Discord14.webp',
-  'assets/avatars/Discord15.jpg',
-  'assets/avatars/Discord16.webp',
-  'assets/avatars/Discord17.jpg',
-];
-
-// -----------------------------------------------------------------------
-
-class AssetImagePickerScreen extends StatelessWidget {
+class AssetImagePickerScreen extends StatefulWidget {
   const AssetImagePickerScreen({super.key});
 
   @override
+  State<AssetImagePickerScreen> createState() => _AssetImagePickerScreenState();
+}
+
+class _AssetImagePickerScreenState extends State<AssetImagePickerScreen> {
+  // Mapa przechowująca kategorie i przypisane do nich obrazy.
+  // Klucz: Nazwa kategorii (np. "Animals"), Wartość: Lista ścieżek do obrazów.
+  Map<String, List<String>> imageCategories = {};
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAssetCategories();
+  }
+
+  /// Funkcja do dynamicznego wczytywania kategorii i obrazów z folderu assets.
+  Future<void> _loadAssetCategories() async {
+    final manifestContent = await rootBundle.loadString('AssetManifest.json');
+    final Map<String, dynamic> manifestMap = json.decode(manifestContent);
+
+    final Map<String, List<String>> categories = {};
+
+    // Iterujemy po wszystkich ścieżkach zasobów z manifestu.
+    for (String assetPath in manifestMap.keys) {
+      // Sprawdzamy, czy ścieżka zaczyna się od 'assets/' i zawiera podfolder.
+      // Przykład: 'assets/fruits/cat.jpg'
+      if (assetPath.startsWith('assets/') && assetPath.split('/').length > 2) {
+        // Wyodrębniamy nazwę podfolderu (kategorii).
+        // 'assets/fruits/cat.jpg' -> 'fruits'
+        final categoryName = assetPath.split('/')[1];
+
+        // Ignorujemy pliki ukryte (np. .DS_Store na macOS).
+        final fileName = assetPath.split('/').last;
+        if (fileName.startsWith('.')) {
+          continue;
+        }
+
+        // Jeśli kategoria nie istnieje jeszcze w naszej mapie, tworzymy ją.
+        if (!categories.containsKey(categoryName)) {
+          categories[categoryName] = [];
+        }
+
+        // Dodajemy ścieżkę obrazu do odpowiedniej kategorii.
+        categories[categoryName]!.add(assetPath);
+      }
+    }
+
+    setState(() {
+      imageCategories = categories;
+      isLoading = false;
+    });
+  }
+
+  /// Funkcja pomocnicza do zamiany nazwy folderu na ładną nazwę kategorii.
+  /// Przykład: "fruits" -> "Animals"
+  String _formatCategoryName(String name) {
+    if (name.isEmpty) return '';
+    return name[0].toUpperCase() + name.substring(1);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Pobieramy nazwy kategorii do stworzenia zakładek.
+    final categoryKeys = imageCategories.keys.toList();
+
     return DefaultTabController(
-      length: 2,
+      // Liczba zakładek jest teraz dynamiczna.
+      length: categoryKeys.length,
       child: Scaffold(
         backgroundColor: AppColors.purple5,
         appBar: AppBar(
@@ -68,27 +90,42 @@ class AssetImagePickerScreen extends StatelessWidget {
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
-          bottom: const TabBar(
+          // Jeśli nie ma kategorii, nie pokazuj paska z zakładkami.
+          bottom: categoryKeys.isEmpty
+              ? null
+              : TabBar(
+            isScrollable: true, // Pozwala przewijać zakładki, jeśli jest ich dużo.
             indicatorColor: AppColors.purple1,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.grey,
-            tabs: [
-              Tab(text: 'Animals'),
-              Tab(text: 'Avatars'),
-            ],
+            // Dynamicznie tworzymy zakładki na podstawie kluczy mapy.
+            tabs: categoryKeys
+                .map((key) => Tab(text: _formatCategoryName(key)))
+                .toList(),
           ),
         ),
-        body: const TabBarView(
-          children: [
-            _ImageGrid(imagePaths: animalImages),
-            _ImageGrid(imagePaths: avatarImages),
-          ],
+        body: isLoading
+            ? const Center(child: CircularProgressIndicator(color: AppColors.purple1))
+        // Jeśli nie ma kategorii, pokaż informację.
+            : categoryKeys.isEmpty
+            ? const Center(
+          child: Text(
+            'No image categories found in assets.',
+            style: TextStyle(color: Colors.white70, fontSize: 16),
+          ),
+        )
+        // Dynamicznie tworzymy widoki dla każdej zakładki.
+            : TabBarView(
+          children: categoryKeys
+              .map((key) => _ImageGrid(imagePaths: imageCategories[key]!))
+              .toList(),
         ),
       ),
     );
   }
 }
 
+// Widget _ImageGrid pozostaje bez zmian.
 class _ImageGrid extends StatelessWidget {
   final List<String> imagePaths;
 
@@ -96,6 +133,15 @@ class _ImageGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (imagePaths.isEmpty) {
+      return const Center(
+        child: Text(
+          'No images found in this category.',
+          style: TextStyle(color: Colors.white70, fontSize: 16),
+        ),
+      );
+    }
+
     return GridView.builder(
       padding: const EdgeInsets.all(16.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -108,7 +154,6 @@ class _ImageGrid extends StatelessWidget {
         final imagePath = imagePaths[index];
         return GestureDetector(
           onTap: () {
-            // Zwróć wybraną ścieżkę do poprzedniego ekranu
             Navigator.of(context).pop(imagePath);
           },
           child: ClipRRect(

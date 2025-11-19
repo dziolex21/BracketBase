@@ -2,6 +2,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/tournament_screen.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 
 class TournamentLobby extends StatefulWidget {
   final String lobbyId;
@@ -37,6 +41,19 @@ class _TournamentLobbyState extends State<TournamentLobby> {
     super.dispose();
   }
 
+  Future<void> _saveBracketLocally(String jsonString) async {
+    try {
+      final Directory tempDir = await getTemporaryDirectory();
+      final String filePath = p.join(tempDir.path, 'bracket.json');
+      final File jsonFile = File(filePath);
+
+      await jsonFile.writeAsString(jsonString);
+      print("Bracket downloaded and saved successfully.");
+    } catch (e) {
+      print("Error saving downloaded bracket: $e");
+    }
+  }
+
   Future<void> _promptForPlayerName() async {
     final name = await showDialog<String>(
       context: context,
@@ -55,24 +72,34 @@ class _TournamentLobbyState extends State<TournamentLobby> {
           ),
         ),
         actions: [
-          TextButton(
+          ElevatedButton(
             onPressed: () {
               if (_nameController.text.trim().isNotEmpty) {
                 Navigator.of(context).pop(_nameController.text.trim());
               }
             },
-            child: const Text('Join', style: TextStyle(color: AppColors.purple1)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.purple2, // Button background color
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Join',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
 
     if (name != null && name.isNotEmpty) {
-      final docRef =
-          FirebaseFirestore.instance.collection('tournaments').doc(widget.lobbyId);
+      final docRef = FirebaseFirestore.instance
+          .collection('tournaments')
+          .doc(widget.lobbyId);
 
       try {
-        await docRef.update({'playersList': FieldValue.arrayUnion([name])});
+        await docRef.update({
+          'playersList': FieldValue.arrayUnion([name])
+        });
 
         if (mounted) {
           setState(() {
@@ -81,8 +108,8 @@ class _TournamentLobbyState extends State<TournamentLobby> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Failed to join lobby: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Failed to join lobby: $e')));
           Navigator.of(context).pop();
         }
       }
@@ -96,13 +123,16 @@ class _TournamentLobbyState extends State<TournamentLobby> {
   Future<void> _handleLeaveLobby() async {
     if (_playerName == null) return;
 
-    final docRef =
-        FirebaseFirestore.instance.collection('tournaments').doc(widget.lobbyId);
+    final docRef = FirebaseFirestore.instance
+        .collection('tournaments')
+        .doc(widget.lobbyId);
     try {
       if (widget.isHost) {
         await docRef.delete();
       } else {
-        await docRef.update({'playersList': FieldValue.arrayRemove([_playerName])});
+        await docRef.update({
+          'playersList': FieldValue.arrayRemove([_playerName])
+        });
       }
     } catch (e) {
       // Document may already be deleted, ignore.
@@ -175,89 +205,115 @@ class _TournamentLobbyState extends State<TournamentLobby> {
               // Lista użytkowników
               Expanded(
                 child: StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection('tournaments')
-                      .doc(widget.lobbyId)
-                      .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+                    stream: FirebaseFirestore.instance
+                        .collection('tournaments')
+                        .doc(widget.lobbyId)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                    if (!snapshot.data!.exists) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
-                          Navigator.of(context).pop();
-                        }
-                      });
-                      return const Center(
-                          child: Text('Tournament has been cancelled.',
-                              style: TextStyle(color: Colors.white)));
-                    }
-
-                    final data = snapshot.data!.data() as Map<String, dynamic>?;
-
-                    if (data != null && (data['isStarted'] == true)) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
-                          if (!_isStartingTournament) {
-                            setState(() {
-                              _isStartingTournament = true;
-                            });
+                      if (!snapshot.data!.exists) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            Navigator.of(context).pop();
                           }
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => TournamentScreen(
-                                    isHost: widget.isHost,
-                                    tournamentId: widget.lobbyId)),
-                          );
-                        }
-                      });
-                      return const Center(
-                          child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ));
-                    }
+                        });
+                        return const Center(
+                            child: Text('Tournament has been cancelled.',
+                                style: TextStyle(color: Colors.white)));
+                      }
 
-                    if (data == null || data['playersList'] == null) {
-                      return const Center(child: Text('Brak graczy'));
-                    }
+                      final data = snapshot.data!.data() as Map<String, dynamic>?;
 
-                    final playersList = List<String>.from(data['playersList']);
+                      // --- TOURNAMENT START LOGIC ---
+                      if (data != null && (data['isStarted'] == true)) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) async {
+                          if (mounted) {
+                            if (!_isStartingTournament) {
+                              setState(() {
+                                _isStartingTournament = true;
+                              });
 
-                    return GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 16,
-                        mainAxisSpacing: 16,
-                        childAspectRatio: 2.8,
-                      ),
-                      itemCount: playersList.length,
-                      itemBuilder: (context, index) {
-                        final playerName = playersList[index];
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: index == 0
-                                ? AppColors.purple2
-                                : AppColors.purple4,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Center(
-                            child: Text(
-                              playerName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
+                              // 1. CHECK AND DOWNLOAD THE BRACKET
+                              if (data['bracketData'] != null) {
+                                // Save data from the server to a local file
+                                await _saveBracketLocally(data['bracketData']);
+                              } else {
+                                print("Error: No bracket data found on server!");
+                              }
+
+                              // 2. NAVIGATE TO THE TOURNAMENT SCREEN
+                              // Find this part in your TournamentLobby
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => TournamentScreen(
+                                      tournamentId: widget.lobbyId,
+                                      isHost: widget.isHost,
+                                      // ADD THIS LINE:
+                                      currentPlayerName: _playerName,
+                                    )),
+                              );
+                            }
+                          }
+                        });
+
+                        // While downloading and navigating, show a loading indicator
+                        return const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(color: Colors.white),
+                                SizedBox(height: 10),
+                                Text("Downloading tournament data...",
+                                    style: TextStyle(color: Colors.white))
+                              ],
+                            ));
+                      }
+
+                      // --- WHAT WAS MISSING: DISPLAYING THE PLAYER LIST ---
+                      if (data == null || data['playersList'] == null) {
+                        return const Center(
+                            child: Text('Waiting for players...',
+                                style: TextStyle(color: Colors.white)));
+                      }
+
+                      final playersList =
+                      List<String>.from(data['playersList']);
+
+                      return GridView.builder(
+                        gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 2.8,
+                        ),
+                        itemCount: playersList.length,
+                        itemBuilder: (context, index) {
+                          final playerName = playersList[index];
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: index == 0
+                                  ? AppColors.purple2
+                                  : AppColors.purple4,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Center(
+                              child: Text(
+                                playerName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
+                          );
+                        },
+                      );
+                    }),
               ),
 
               // Przycisk startu

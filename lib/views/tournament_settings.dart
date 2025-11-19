@@ -5,8 +5,7 @@ import 'package:tournament_app/configs/settings.dart';
 class TournamentSettings extends StatefulWidget {
   const TournamentSettings({super.key});
 
-  @override
-  State<TournamentSettings> createState() => _TournamentSettingsState();
+  @override  State<TournamentSettings> createState() => _TournamentSettingsState();
 }
 
 class _TournamentSettingsState extends State<TournamentSettings> {
@@ -63,36 +62,6 @@ class _TournamentSettingsState extends State<TournamentSettings> {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            // Images section
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-              decoration: BoxDecoration(
-                color: AppColors.purple4,
-                borderRadius: BorderRadius.circular(16.0),
-                border: Border.all(color: AppColors.purple2),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Images',
-                    style: TextStyle(color: Colors.white, fontSize: 22),
-                  ),
-                  Switch(
-                    value: _settings.imagesEnabled,
-                    onChanged: (value) {
-                      setState(() {
-                        _settings.imagesEnabled = value;
-                        _saveSettings();
-                      });
-                    },
-                    activeTrackColor: Colors.green,
-                    inactiveThumbColor: Colors.grey,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24.0),
             // Tiebreaker section
             Container(
               padding: const EdgeInsets.all(16.0),

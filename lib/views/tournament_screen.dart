@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -7,11 +8,19 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/voting_screen.dart';
+import 'package:tournament_app/views/tournament_result_screen.dart';
 
 class TournamentScreen extends StatefulWidget {
   final bool isHost;
   final String tournamentId;
-  const TournamentScreen({super.key, this.isHost = false, this.tournamentId = ""});
+  final String? currentPlayerName;
+
+  const TournamentScreen({
+    super.key,
+    this.isHost = false,
+    this.tournamentId = "",
+    this.currentPlayerName,
+  });
 
   @override
   State<TournamentScreen> createState() => _TournamentScreenState();
@@ -22,30 +31,35 @@ class _TournamentScreenState extends State<TournamentScreen> {
   bool _isLoading = true;
   String? _error;
 
+  // Mapping logic for bracket progression
+  final Map<String, String> _roundProgression = {
+    '1/16': '1/8',
+    '1/8': '1/4',
+    '1/4': '1/2',
+    '1/2': '1',
+    '1': 'winner'
+  };
+
   @override
   void initState() {
     super.initState();
-    _loadBracket();
+    _loadLocalBracket();
   }
 
-  Future<void> _loadBracket() async {
+  Future<void> _loadLocalBracket() async {
     try {
       final Directory tempDir = await getTemporaryDirectory();
-      final String filePath = p.join(tempDir.path, 'bracket.json');
-      final File jsonFile = File(filePath);
+      final File jsonFile = File(p.join(tempDir.path, 'bracket.json'));
 
       if (await jsonFile.exists()) {
         final String jsonString = await jsonFile.readAsString();
-        final Map<String, dynamic> loadedBracket = jsonDecode(jsonString);
         setState(() {
-          _bracket = loadedBracket;
+          _bracket = jsonDecode(jsonString);
           _isLoading = false;
         });
       } else {
-        setState(() {
-          _error = 'Tournament data not found. Please create a new tournament.';
-          _isLoading = false;
-        });
+        // Wait for Firestore sync if local file is missing
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       setState(() {
@@ -53,6 +67,140 @@ class _TournamentScreenState extends State<TournamentScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _updateLocalBracket(String jsonString) async {
+    try {
+      final Directory tempDir = await getTemporaryDirectory();
+      final File jsonFile = File(p.join(tempDir.path, 'bracket.json'));
+      await jsonFile.writeAsString(jsonString);
+
+      if (mounted) {
+        setState(() {
+          _bracket = jsonDecode(jsonString);
+        });
+      }
+    } catch (e) {
+      print("Error updating local bracket: $e");
+    }
+  }
+
+  /// Logic to find the next playable match
+  Map<String, dynamic>? _findNextReadyMatch() {
+    if (_bracket == null) return null;
+
+    final List<String> roundOrder = ['1/16', '1/8', '1/4', '1/2', '1'];
+
+    for (String roundName in roundOrder) {
+      if (!_bracket!.containsKey(roundName)) continue;
+      if (roundName == '1') continue; // Finals handled separately
+
+      final List<dynamic> currentRoundPlayers = _bracket![roundName];
+      final String nextRoundName = _roundProgression[roundName]!;
+
+      if (!_bracket!.containsKey(nextRoundName)) continue;
+      final List<dynamic> nextRoundPlayers = _bracket![nextRoundName];
+
+      // Check pairs
+      for (int i = 0; i < currentRoundPlayers.length; i += 2) {
+        if (i + 1 >= currentRoundPlayers.length) break;
+
+        final p1 = currentRoundPlayers[i];
+        final p2 = currentRoundPlayers[i + 1];
+
+        // Check if both players exist
+        bool p1Ready = p1['name'] != null && (p1['name'] as String).isNotEmpty;
+        bool p2Ready = p2['name'] != null && (p2['name'] as String).isNotEmpty;
+
+        if (p1Ready && p2Ready) {
+          // Check if the destination slot is empty
+          int nextRoundIndex = i ~/ 2;
+          if (nextRoundIndex < nextRoundPlayers.length) {
+            final nextSlot = nextRoundPlayers[nextRoundIndex];
+            bool nextSlotEmpty = nextSlot['name'] == null || (nextSlot['name'] as String).isEmpty;
+
+            if (nextSlotEmpty) {
+              return {
+                'round': roundName,
+                'nextRound': nextRoundName,
+                'indexP1': i,
+                'indexP2': i + 1,
+                'nextRoundIndex': nextRoundIndex,
+                'player1': p1,
+                'player2': p2,
+              };
+            }
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  Future<void> _startNextVotingRound() async {
+    final matchData = _findNextReadyMatch();
+
+    if (matchData != null) {
+      await FirebaseFirestore.instance
+          .collection('tournaments')
+          .doc(widget.tournamentId)
+          .update({
+        'currentMatch': matchData,
+        'isVotingStarted': true,
+        'optionA': 0,
+        'optionB': 0,
+        'tieOption': '',
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No more matches found. Tournament might be ready to finish!"))
+      );
+    }
+  }
+
+  Future<void> _handleLeaveTournament() async {
+    final docRef = FirebaseFirestore.instance.collection('tournaments').doc(widget.tournamentId);
+    try {
+      if (widget.isHost) {
+        await docRef.delete();
+      } else {
+        if (widget.currentPlayerName != null) {
+          await docRef.update({'playersList': FieldValue.arrayRemove([widget.currentPlayerName])});
+        }
+      }
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) { /*...*/ }
+  }
+
+  void _showLeaveConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: AppColors.purple4,
+          title: const Text("Leave Tournament?", style: TextStyle(color: Colors.white)),
+          content: Text(
+            widget.isHost
+                ? "As the host, leaving will end the tournament for everyone."
+                : "Are you sure you want to leave this tournament?",
+            style: const TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Cancel", style: TextStyle(color: Colors.white54)),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text("Leave", style: TextStyle(color: AppColors.purple1, fontWeight: FontWeight.bold)),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _handleLeaveTournament();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   int _nextPowerOfTwo(int n) {
@@ -64,89 +212,86 @@ class _TournamentScreenState extends State<TournamentScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
+      return const Scaffold(
         backgroundColor: AppColors.purple5,
-        appBar: AppBar(
-          title: const Text('Loading Tournament...'),
-          backgroundColor: AppColors.purple3,
-          automaticallyImplyLeading: false,
-        ),
-        body: const Center(child: CircularProgressIndicator()),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (_error != null) {
-      return Scaffold(
-        backgroundColor: AppColors.purple5,
-        appBar: AppBar(
-          title: const Text('Error'),
-          backgroundColor: AppColors.purple3,
-          automaticallyImplyLeading: false,
-        ),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.only(left: 16, right:16, top:0,bottom: 16),
-            child: Text(
-              _error!,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
-      );
-    }
+    // --- RESTORED BRACKET CALCULATION LOGIC ---
+    if (_bracket == null) return const Scaffold(backgroundColor: AppColors.purple5, body: Center(child: Text("No Data", style: TextStyle(color: Colors.white))));
 
-    final bracket = _bracket!;
-    final rounds = bracket.keys.toList();
-    final firstRoundPlayers =
-    List<Map<String, dynamic>>.from(bracket[rounds.first] ?? []);
+    final rounds = _bracket!.keys.toList();
+    final firstRoundPlayers = List<Map<String, dynamic>>.from(_bracket![rounds.first] ?? []);
 
-    // Count the total number of contestants
     int totalContestants = firstRoundPlayers.length;
-
-    // If there is a 2nd round, look for byes in it
     if (rounds.length > 1) {
-      final List<Map<String, dynamic>> secondRoundSlots =
-      List<Map<String, dynamic>>.from(bracket[rounds[1]] ?? []);
-
-      // "Byes" are participants in the 2nd round with a non-empty name
-      final int byes = secondRoundSlots
-          .where((player) =>
-      player['name'] != null && (player['name'] as String).isNotEmpty)
-          .length;
-
+      final List<Map<String, dynamic>> secondRoundSlots = List<Map<String, dynamic>>.from(_bracket![rounds[1]] ?? []);
+      final int byes = secondRoundSlots.where((player) => player['name'] != null && (player['name'] as String).isNotEmpty).length;
       totalContestants += byes;
     }
 
-    // totalSlots is the "next power of two" of the TOTAL number of contestants
     final totalSlots = _nextPowerOfTwo(max(1, totalContestants));
     const double horizontalPadding = 16.0;
-
+    // ------------------------------------------
 
     return StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance.collection('tournaments').doc(widget.tournamentId).snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>?;
-            if (data != null && data['isVotingStarted'] == true) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => VotingScreen(gameId: widget.tournamentId)),
-                  );
+
+            if (data == null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) Navigator.of(context).pop(); });
+            } else {
+              // 1. Sync Bracket
+              if (data.containsKey('bracketData')) {
+                final String serverBracketStr = data['bracketData'];
+                // Simple check to avoid infinite loops if data is identical
+                if (jsonEncode(_bracket) != serverBracketStr) {
+                  _updateLocalBracket(serverBracketStr);
                 }
-              });
+              }
+
+              // 2. Navigation
+              if (data['isVotingStarted'] == true) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => VotingScreen(gameId: widget.tournamentId, isHost: widget.isHost)),
+                    );
+                  }
+                });
+              } else if (data['isTournamentFinished'] == true) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const TournamentResultsScreen()),
+                    );
+                  }
+                });
+              }
             }
+          } else if (snapshot.connectionState == ConnectionState.active && !snapshot.hasData) {
+            WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) Navigator.of(context).pop(); });
           }
+
+          bool isMatchReady = widget.isHost && _findNextReadyMatch() != null;
+          bool isTournamentDone = widget.isHost && !isMatchReady;
+
           return WillPopScope(
-            onWillPop: () async => false,
+            onWillPop: () async { _showLeaveConfirmationDialog(); return false; },
             child: Scaffold(
               backgroundColor: AppColors.purple5,
               appBar: AppBar(
                 title: const Text('Tournament'),
                 backgroundColor: AppColors.purple3,
                 automaticallyImplyLeading: false,
+                actions: [
+                  IconButton(icon: const Icon(Icons.logout_rounded, color: Colors.white), onPressed: _showLeaveConfirmationDialog),
+                ],
               ),
               body: Column(
                 children: [
@@ -166,8 +311,8 @@ class _TournamentScreenState extends State<TournamentScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
                                 child: _RoundColumn(
                                   roundName: rounds[i],
-                                  players: List<Map<String, dynamic>>.from(bracket[rounds[i]] ?? []),
-                                  totalSlots: totalSlots,
+                                  players: List<Map<String, dynamic>>.from(_bracket![rounds[i]] ?? []),
+                                  totalSlots: totalSlots, // Passing dynamic totalSlots
                                   roundIndex: i,
                                   horizontalPadding: horizontalPadding,
                                 ),
@@ -179,32 +324,50 @@ class _TournamentScreenState extends State<TournamentScreen> {
                   ),
                   Visibility(
                     visible: widget.isHost,
-                    child: Padding(
+                    child: Container(
                       padding: const EdgeInsets.all(16.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            FirebaseFirestore.instance
-                                .collection('tournaments')
-                                .doc(widget.tournamentId)
-                                .update({'isVotingStarted': true});
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.purple1,
-                            padding: const EdgeInsets.symmetric(vertical: 16.0),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0),
+                      decoration: const BoxDecoration(
+                        color: AppColors.purple4,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                      ),
+                      child: Column(
+                        children: [
+                          if (!isTournamentDone)
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: isMatchReady ? _startNextVotingRound : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: isMatchReady ? AppColors.purple1 : Colors.grey,
+                                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+                                ),
+                                child: Text(
+                                  'Start Next Match Vote',
+                                  style: TextStyle(fontSize: 18, color: isMatchReady ? Colors.white : Colors.white54, fontWeight: FontWeight.bold),
+                                ),
+                              ),
                             ),
-                          ),
-                          child: const Text(
-                            'Go to Voting',
-                            style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
+                          if (isTournamentDone)
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  FirebaseFirestore.instance
+                                      .collection('tournaments')
+                                      .doc(widget.tournamentId)
+                                      .update({'isTournamentFinished': true});
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFFD700),
+                                  foregroundColor: Colors.black,
+                                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+                                ),
+                                child: const Text('Finish & Show Results', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
@@ -216,6 +379,8 @@ class _TournamentScreenState extends State<TournamentScreen> {
     );
   }
 }
+
+// --- FULLY RESTORED UI CLASSES ---
 
 class _RoundColumn extends StatelessWidget {
   final String roundName;
@@ -241,7 +406,7 @@ class _RoundColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     const double totalHeight = 900;
     const double titleTopPadding = 2;
-    const double cardsTopOffset = 40; // Offset for all cards
+    const double cardsTopOffset = 40;
 
     const double lineSpace = 40;
     const double strokeWidth = 2.0;
@@ -249,30 +414,24 @@ class _RoundColumn extends StatelessWidget {
 
     final int slotsInThisRound = (totalSlots / pow(2, roundIndex)).ceil();
 
-    final double availableSpacePerSlot =
-        (totalHeight - cardsTopOffset) / slotsInThisRound;
+    final double availableSpacePerSlot = (totalHeight - cardsTopOffset) / slotsInThisRound;
     final double calculatedCardHeight = availableSpacePerSlot * 0.85;
     final double finalCardHeight = calculatedCardHeight.clamp(30.0, 100.0);
 
     final double cardWidth = (finalCardHeight * 1.5).clamp(80.0, 150.0);
     final double columnWidth = cardWidth + lineSpace;
 
-    // 1. Create positions for ALL slots
     final List<double> positions = List.generate(
       slotsInThisRound,
           (i) => (i * 2 + 1) / (2 * slotsInThisRound),
     );
 
-    // 2. Calculate the number of pairs to draw
-    // We need to draw lines only for pairs that contain at least one player.
     final int pairsToDraw = (players.length / 2).ceil();
     final int positionsToKeep = pairsToDraw * 2;
 
-    // Trim the list of positions to exclude completely empty pairs at the end
     final List<double> positionsForDrawing = (positionsToKeep >= slotsInThisRound)
         ? positions
         : positions.sublist(0, positionsToKeep);
-    // -----------------------------------------------------------------
 
     return SizedBox(
       width: columnWidth,
@@ -280,12 +439,10 @@ class _RoundColumn extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // CustomPainter for lines
           if (roundIndex < _getRoundCount(totalSlots) - 1)
             CustomPaint(
               size: Size(columnWidth, totalHeight),
               painter: BracketPainter(
-                // Pass the trimmed list
                 positions: positionsForDrawing,
                 totalHeight: totalHeight,
                 cardWidth: cardWidth,
@@ -297,7 +454,6 @@ class _RoundColumn extends StatelessWidget {
               ),
             ),
 
-          // Round title in a container (fixed left: 0 position)
           Positioned(
             top: titleTopPadding,
             left: 0,
@@ -321,10 +477,8 @@ class _RoundColumn extends StatelessWidget {
             ),
           ),
 
-          // Contestant cards
           for (int i = 0; i < slotsInThisRound; i++)
             Positioned(
-              // Cards are also aligned to left: 0
               left: 0,
               top: (totalHeight * positions[i] - finalCardHeight / 2) + cardsTopOffset,
               child: (i < players.length)
@@ -359,14 +513,10 @@ class _ContestantCard extends StatelessWidget {
     required this.width,
   });
 
-  // Note: _buildFallback is now defined inside build()
-
   @override
   Widget build(BuildContext context) {
-    // Calculating dynamic font sizes
     final double dynamicNameFontSize = (height * 0.15).clamp(8.0, 14.0);
     final double imageHeight = height * 0.55;
-    // The size of the "?" is taken as 50% of the image height
     final double dynamicFallbackFontSize = (imageHeight * 0.5).clamp(12.0, 28.0);
 
     Widget _buildFallback() {
@@ -374,7 +524,6 @@ class _ContestantCard extends StatelessWidget {
         child: Text('?', style: TextStyle(fontSize: dynamicFallbackFontSize, color: Colors.white)),
       );
     }
-    // ----------------------------------------------------
 
     final double imageWidth = imageHeight;
 
@@ -438,7 +587,7 @@ class BracketPainter extends CustomPainter {
   final List<double> positions;
   final double totalHeight;
   final double cardWidth;
-  final double lineLength; // This is the "space" for the line (40px)
+  final double lineLength;
   final Color lineColor;
   final double strokeWidth;
   final double cardsTopOffset;
@@ -463,23 +612,16 @@ class BracketPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     for (int i = 0; i < positions.length - 1; i += 2) {
-      //  FIX 1: Y-coordinates now po
       final double Y1 = (totalHeight * positions[i]) + cardsTopOffset;
       final double Y2 = (totalHeight * positions[i + 1]) + cardsTopOffset;
-
       final double Ymid = (Y1 + Y2) / 2;
-
       final double Xstart = cardWidth;
       final double Xvert = cardWidth + lineLength / 2;
-
       final double Xend = cardWidth + lineLength + (horizontalPadding * 2);
 
       canvas.drawLine(Offset(Xstart, Y1), Offset(Xvert, Y1), paint);
-
       canvas.drawLine(Offset(Xstart, Y2), Offset(Xvert, Y2), paint);
-
       canvas.drawLine(Offset(Xvert, Y1), Offset(Xvert, Y2), paint);
-
       canvas.drawLine(Offset(Xvert, Ymid), Offset(Xend, Ymid), paint);
     }
   }
