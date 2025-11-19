@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Tournament App',
+      title: 'BracketBase',
       home: const StartScreen()
     );
   }
