@@ -426,7 +426,7 @@ class _RoundColumn extends StatelessWidget {
           (i) => (i * 2 + 1) / (2 * slotsInThisRound),
     );
 
-    final int pairsToDraw = (players.length / 2).ceil();
+    final int pairsToDraw = players.length ~/ 2;
     final int positionsToKeep = pairsToDraw * 2;
 
     final List<double> positionsForDrawing = (positionsToKeep >= slotsInThisRound)
