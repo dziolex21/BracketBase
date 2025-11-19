@@ -5,6 +5,7 @@ import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/configs/settings.dart';
 import 'package:tournament_app/views/tournament_screen.dart';
 
+
 class VotingScreen extends StatefulWidget {
   final String gameId;
   final bool isHost;
@@ -27,15 +28,28 @@ class _VotingScreenState extends State<VotingScreen> {
   void initState() {
     super.initState();
     _loadSettings();
-    // USUNIĘTO: Resetowanie głosów przez hosta.
-    // Dzieje się to teraz na TournamentScreen PRZED nawigacją.
+    if (widget.isHost) {
+      _resetTournamentVotes();
+    }
   }
 
   Future<void> _loadSettings() async {
     _settings = await AppSettings.load();
   }
 
-  // USUNIĘTO: Funkcja _resetTournamentVotes() nie jest już potrzebna tutaj.
+  /// 🔁 Reset tournament votes in Firestore (Host only)
+  Future<void> _resetTournamentVotes() async {
+    // Also reset local state for the host
+    setState(() {
+      _userHasVoted = false;
+      _selectedOptionKey = null;
+    });
+
+    await docRef.update({
+      'optionA': 0,
+      'optionB': 0,
+    });
+  }
 
   /// Handles the user's vote action
   void _handleVote(String optionKey) async {
@@ -78,11 +92,6 @@ class _VotingScreenState extends State<VotingScreen> {
             }
 
             final data = snapshot.data!.data() as Map<String, dynamic>;
-
-            // ZMIENIONE: Odczytaj nazwy z Firebase
-            final String optionAName = data['optionAName'] ?? 'Option A';
-            final String optionBName = data['optionBName'] ?? 'Option B';
-
             final players = data['playersList'] as List? ?? [];
             final expectedVotes = players.length;
 
@@ -108,9 +117,6 @@ class _VotingScreenState extends State<VotingScreen> {
                         gameId: widget.gameId,
                         isHost: widget.isHost,
                         tieOption: data['tieOption'],
-                        // ZMIENIONE: Przekaż nazwy do ekranu wyników
-                        optionAName: optionAName,
-                        optionBName: optionBName,
                       ),
                     ),
                   );
@@ -140,16 +146,14 @@ class _VotingScreenState extends State<VotingScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       VoteOptionCard(
-                        // ZMIENIONE: Użyj dynamicznej nazwy
-                        title: optionAName,
+                        title: 'Option A',
                         imagePath: 'assets/placeholder_image.png',
                         votes: votesA,
                         isSelected: _selectedOptionKey == 'optionA',
                         onTap: () => _handleVote('optionA'),
                       ),
                       VoteOptionCard(
-                        // ZMIENIONE: Użyj dynamicznej nazwy
-                        title: optionBName,
+                        title: 'Option B',
                         imagePath: 'assets/placeholder_image.png',
                         votes: votesB,
                         isSelected: _selectedOptionKey == 'optionB',
@@ -271,9 +275,6 @@ class ResultScreen extends StatefulWidget {
   final String gameId;
   final bool isHost;
   final String tieOption;
-  // ZMIENIONE: Dodaj pola na nazwy
-  final String optionAName;
-  final String optionBName;
 
   const ResultScreen({
     super.key,
@@ -281,10 +282,7 @@ class ResultScreen extends StatefulWidget {
     required this.votesB,
     required this.gameId,
     required this.isHost,
-    required this.tieOption,
-    // ZMIENIONE: Wymagaj nazw w konstruktorze
-    required this.optionAName,
-    required this.optionBName,
+    required this.tieOption
   });
 
   @override
@@ -350,16 +348,10 @@ class _ResultScreenState extends State<ResultScreen> {
 
   // Helper widget to build the result view UI to avoid repetition
   Widget _buildResultsView() {
-    // ZMIENIONE: Użyj nazw do ogłoszenia zwycięzcy
     String getWinnerText() {
-      if (widget.votesA > widget.votesB) return '${widget.optionAName} wins!';
-      if (widget.votesB > widget.votesA) return '${widget.optionBName} wins!';
-
-      // Obsługa remisu
-      if (widget.tieOption == 'optionA') return '${widget.optionAName} wins! (Tiebreaker)';
-      if (widget.tieOption == 'optionB') return '${widget.optionBName} wins! (Tiebreaker)';
-
-      return 'It\'s a tie!'; // Fallback
+      if (widget.votesA > widget.votesB) return 'Option A wins!';
+      if (widget.votesB > widget.votesA) return 'Option B wins!';
+      return widget.tieOption + " wins!";
     }
 
     final winner = getWinnerText();
@@ -380,8 +372,7 @@ class _ResultScreenState extends State<ResultScreen> {
             ),
             const SizedBox(height: 30),
             Text(
-              // ZMIENIONE: Pokaż nazwy obok wyników
-              '${widget.optionAName}: ${widget.votesA}   |   ${widget.optionBName}: ${widget.votesB}',
+              'A: ${widget.votesA}   |   B: ${widget.votesB}',
               style: const TextStyle(
                 fontSize: 24,
                 color: Color(0xFFD2A2FF),
@@ -395,7 +386,7 @@ class _ResultScreenState extends State<ResultScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.purple1,
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                      const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                 ),
                 child: const Text(
                   'Back to Tournament',
