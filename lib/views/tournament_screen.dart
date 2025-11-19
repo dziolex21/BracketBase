@@ -7,11 +7,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/views/voting_screen.dart';
+import 'package:tournament_app/views/tournament_result_screen.dart';
 
 class TournamentScreen extends StatefulWidget {
   final bool isHost;
   final String tournamentId;
-  // Added to handle removing the specific player from DB when leaving
   final String? currentPlayerName;
 
   const TournamentScreen({
@@ -63,7 +63,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
     }
   }
 
-  // --- NEW: LEAVE LOGIC START ---
   Future<void> _handleLeaveTournament() async {
     final docRef = FirebaseFirestore.instance
         .collection('tournaments')
@@ -71,10 +70,8 @@ class _TournamentScreenState extends State<TournamentScreen> {
 
     try {
       if (widget.isHost) {
-        // If Host leaves, delete the tournament doc entirely
         await docRef.delete();
       } else {
-        // If Guest leaves, remove them from the list
         if (widget.currentPlayerName != null) {
           await docRef.update({
             'playersList': FieldValue.arrayRemove([widget.currentPlayerName])
@@ -83,7 +80,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
       }
 
       if (mounted) {
-        // Pop until we reach the main menu (or previous valid screen)
         Navigator.of(context).pop();
       }
     } catch (e) {
@@ -116,8 +112,8 @@ class _TournamentScreenState extends State<TournamentScreen> {
             TextButton(
               child: const Text("Leave", style: TextStyle(color: AppColors.purple1, fontWeight: FontWeight.bold)),
               onPressed: () {
-                Navigator.of(context).pop(); // Close dialog
-                _handleLeaveTournament(); // Trigger logic
+                Navigator.of(context).pop();
+                _handleLeaveTournament();
               },
             ),
           ],
@@ -125,7 +121,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
       },
     );
   }
-  // --- LEAVE LOGIC END ---
 
   int _nextPowerOfTwo(int n) {
     int power = 1;
@@ -206,30 +201,44 @@ class _TournamentScreenState extends State<TournamentScreen> {
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>?;
-            // Check if tournament was deleted (Host left)
+
             if (data == null) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) Navigator.of(context).pop();
               });
-            } else if (data['isVotingStarted'] == true) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => VotingScreen(gameId: widget.tournamentId, isHost: widget.isHost,)),
-                  );
-                }
-              });
+            }
+            // --- AUTO-NAVIGATION LOGIC (FOR EVERYONE) ---
+            else {
+              // 1. Navigate to voting
+              if (data['isVotingStarted'] == true) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => VotingScreen(gameId: widget.tournamentId, isHost: widget.isHost,)),
+                    );
+                  }
+                });
+              }
+              // 2. Navigate to results (NEW)
+              else if (data['isTournamentFinished'] == true) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const TournamentResultsScreen()),
+                    );
+                  }
+                });
+              }
             }
           } else if (snapshot.connectionState == ConnectionState.active && !snapshot.hasData) {
-            // Document deleted
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) Navigator.of(context).pop();
             });
           }
 
           return WillPopScope(
-            // Prevent hardware back button, force use of our Exit button
             onWillPop: () async {
               _showLeaveConfirmationDialog();
               return false;
@@ -240,7 +249,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
                 title: const Text('Tournament'),
                 backgroundColor: AppColors.purple3,
                 automaticallyImplyLeading: false,
-                // --- NEW: EXIT BUTTON ---
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.logout_rounded, color: Colors.white),
@@ -248,7 +256,6 @@ class _TournamentScreenState extends State<TournamentScreen> {
                     onPressed: _showLeaveConfirmationDialog,
                   ),
                 ],
-                // ------------------------
               ),
               body: Column(
                 children: [
@@ -279,34 +286,71 @@ class _TournamentScreenState extends State<TournamentScreen> {
                       ),
                     ),
                   ),
+                  // --- CONTROL BUTTONS (HOST ONLY) ---
                   Visibility(
                     visible: widget.isHost,
-                    child: Padding(
+                    child: Container(
                       padding: const EdgeInsets.all(16.0),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            FirebaseFirestore.instance
-                                .collection('tournaments')
-                                .doc(widget.tournamentId)
-                                .update({'isVotingStarted': true});
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.purple1,
-                            padding: const EdgeInsets.symmetric(vertical: 16.0),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0),
+                      decoration: const BoxDecoration(
+                        color: AppColors.purple4,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                      ),
+                      child: Column(
+                        children: [
+                          // Voting button
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                FirebaseFirestore.instance
+                                    .collection('tournaments')
+                                    .doc(widget.tournamentId)
+                                    .update({'isVotingStarted': true});
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.purple1,
+                                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12.0),
+                                ),
+                              ),
+                              child: const Text(
+                                'Go to Voting',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
                             ),
                           ),
-                          child: const Text(
-                            'Go to Voting',
-                            style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold),
+                          const SizedBox(height: 12),
+                          // Results button (NEW)
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                FirebaseFirestore.instance
+                                    .collection('tournaments')
+                                    .doc(widget.tournamentId)
+                                    .update({'isTournamentFinished': true});
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFFD700), // Gold color for finish
+                                foregroundColor: Colors.black, // Black text
+                                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12.0),
+                                ),
+                              ),
+                              child: const Text(
+                                'Finish & Show Results',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                     ),
                   ),
@@ -319,7 +363,7 @@ class _TournamentScreenState extends State<TournamentScreen> {
   }
 }
 
-// ... [Rest of the _RoundColumn, _ContestantCard, and BracketPainter classes remain exactly the same] ...
+// [_RoundColumn, _ContestantCard and BracketPainter classes remain unchanged below]
 class _RoundColumn extends StatelessWidget {
   final String roundName;
   final List<Map<String, dynamic>> players;
@@ -344,7 +388,7 @@ class _RoundColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     const double totalHeight = 900;
     const double titleTopPadding = 2;
-    const double cardsTopOffset = 40; // Offset for all cards
+    const double cardsTopOffset = 40;
 
     const double lineSpace = 40;
     const double strokeWidth = 2.0;
