@@ -2,7 +2,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tournament_app/configs/color_data.dart';
+import 'package:tournament_app/configs/settings.dart';
 import 'package:tournament_app/views/tournament_screen.dart';
+
 
 class VotingScreen extends StatefulWidget {
   final String gameId;
@@ -20,13 +22,19 @@ class _VotingScreenState extends State<VotingScreen> {
   // State variables to track the user's vote locally
   bool _userHasVoted = false;
   String? _selectedOptionKey;
+  late AppSettings _settings;
 
   @override
   void initState() {
     super.initState();
+    _loadSettings();
     if (widget.isHost) {
       _resetTournamentVotes();
     }
+  }
+
+  Future<void> _loadSettings() async {
+    _settings = await AppSettings.load();
   }
 
   /// 🔁 Reset tournament votes in Firestore (Host only)
@@ -44,11 +52,18 @@ class _VotingScreenState extends State<VotingScreen> {
   }
 
   /// Handles the user's vote action
-  void _handleVote(String optionKey) {
+  void _handleVote(String optionKey) async {
+    if (widget.isHost) {
+      String randomOption = Random().nextDouble() > 0.5 ? 'optionA' : 'optionB';
+      await docRef.update({
+        'tieOption': _settings.selectedTiebreaker == 0 ? randomOption : optionKey
+      });
+    }
     if (_userHasVoted) {
       return; // Prevent multiple votes from the same user
     }
 
+    // If it's host voting, set his choice to tiebreaker
     setState(() {
       _userHasVoted = true;
       _selectedOptionKey = optionKey;
@@ -101,6 +116,7 @@ class _VotingScreenState extends State<VotingScreen> {
                         votesB: votesB,
                         gameId: widget.gameId,
                         isHost: widget.isHost,
+                        tieOption: data['tieOption'],
                       ),
                     ),
                   );
@@ -258,6 +274,7 @@ class ResultScreen extends StatefulWidget {
   final int votesB;
   final String gameId;
   final bool isHost;
+  final String tieOption;
 
   const ResultScreen({
     super.key,
@@ -265,6 +282,7 @@ class ResultScreen extends StatefulWidget {
     required this.votesB,
     required this.gameId,
     required this.isHost,
+    required this.tieOption
   });
 
   @override
@@ -333,7 +351,7 @@ class _ResultScreenState extends State<ResultScreen> {
     String getWinnerText() {
       if (widget.votesA > widget.votesB) return 'Option A wins!';
       if (widget.votesB > widget.votesA) return 'Option B wins!';
-      return "It's a Tie!";
+      return widget.tieOption + " wins!";
     }
 
     final winner = getWinnerText();
