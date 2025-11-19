@@ -1,10 +1,13 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:tournament_app/configs/color_data.dart';
 import 'package:tournament_app/configs/settings.dart';
 import 'package:tournament_app/views/tournament_screen.dart';
-
 
 class VotingScreen extends StatefulWidget {
   final String gameId;
@@ -19,7 +22,6 @@ class _VotingScreenState extends State<VotingScreen> {
   DocumentReference<Map<String, dynamic>> get docRef =>
       FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
 
-  // State variables to track the user's vote locally
   bool _userHasVoted = false;
   String? _selectedOptionKey;
   late AppSettings _settings;
@@ -28,30 +30,12 @@ class _VotingScreenState extends State<VotingScreen> {
   void initState() {
     super.initState();
     _loadSettings();
-    if (widget.isHost) {
-      _resetTournamentVotes();
-    }
   }
 
   Future<void> _loadSettings() async {
     _settings = await AppSettings.load();
   }
 
-  /// 🔁 Reset tournament votes in Firestore (Host only)
-  Future<void> _resetTournamentVotes() async {
-    // Also reset local state for the host
-    setState(() {
-      _userHasVoted = false;
-      _selectedOptionKey = null;
-    });
-
-    await docRef.update({
-      'optionA': 0,
-      'optionB': 0,
-    });
-  }
-
-  /// Handles the user's vote action
   void _handleVote(String optionKey) async {
     if (widget.isHost) {
       String randomOption = Random().nextDouble() > 0.5 ? 'optionA' : 'optionB';
@@ -59,21 +43,16 @@ class _VotingScreenState extends State<VotingScreen> {
         'tieOption': _settings.selectedTiebreaker == 0 ? randomOption : optionKey
       });
     }
-    if (_userHasVoted) {
-      return; // Prevent multiple votes from the same user
-    }
+    if (_userHasVoted) return;
 
-    // If it's host voting, set his choice to tiebreaker
     setState(() {
       _userHasVoted = true;
       _selectedOptionKey = optionKey;
     });
 
-    // Run a transaction to safely update the vote count
     FirebaseFirestore.instance.runTransaction((transaction) async {
       final snapshot = await transaction.get(docRef);
       if (!snapshot.exists) return;
-
       final currentVotes = snapshot.data()![optionKey] ?? 0;
       transaction.update(docRef, {optionKey: currentVotes + 1});
     });
@@ -92,19 +71,34 @@ class _VotingScreenState extends State<VotingScreen> {
             }
 
             final data = snapshot.data!.data() as Map<String, dynamic>;
-            final players = data['playersList'] as List? ?? [];
-            final expectedVotes = players.length;
+            final playersList = data['playersList'] as List? ?? [];
+            // Safety: If playersList is empty/null, assume 1 vote to prevent infinite loop
+            final expectedVotes = playersList.isEmpty ? 1 : playersList.length;
 
-            if (expectedVotes == 0) {
-              // This might happen temporarily if the lobby data is still loading
-              return const Center(child: CircularProgressIndicator());
+            // --- GET MATCH INFO ---
+            final currentMatch = data['currentMatch'] as Map<String, dynamic>?;
+            String nameA = "Option A";
+            String imageA = "";
+            String nameB = "Option B";
+            String imageB = "";
+
+            if (currentMatch != null) {
+              final p1 = currentMatch['player1'];
+              final p2 = currentMatch['player2'];
+              if (p1 != null) {
+                nameA = p1['name'] ?? "Player 1";
+                imageA = p1['picture'] ?? "";
+              }
+              if (p2 != null) {
+                nameB = p2['name'] ?? "Player 2";
+                imageB = p2['picture'] ?? "";
+              }
             }
 
             final votesA = data['optionA'] ?? 0;
             final votesB = data['optionB'] ?? 0;
             final totalVotes = votesA + votesB;
 
-            // ✅ If everyone has voted -> navigate to results
             if (totalVotes >= expectedVotes) {
               Future.microtask(() {
                 if (mounted) {
@@ -116,45 +110,40 @@ class _VotingScreenState extends State<VotingScreen> {
                         votesB: votesB,
                         gameId: widget.gameId,
                         isHost: widget.isHost,
-                        tieOption: data['tieOption'],
+                        tieOption: data['tieOption'] ?? 'optionA',
+                        matchData: currentMatch,
                       ),
                     ),
                   );
                 }
               });
-              // Show a loader while navigating
+              // Show a simple loader while redirecting
               return const Center(child: CircularProgressIndicator());
             }
 
             return Column(
               children: [
-                const SizedBox(height: 180),
+                const SizedBox(height: 40),
                 const Text(
                   'Vote',
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFD2A2FF),
-                  ),
+                  style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Color(0xFFD2A2FF)),
                 ),
                 const SizedBox(height: 20),
-
-                // Voting section
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       VoteOptionCard(
-                        title: 'Option A',
-                        imagePath: 'assets/placeholder_image.png',
+                        title: nameA,
+                        imagePath: imageA,
                         votes: votesA,
                         isSelected: _selectedOptionKey == 'optionA',
                         onTap: () => _handleVote('optionA'),
                       ),
                       VoteOptionCard(
-                        title: 'Option B',
-                        imagePath: 'assets/placeholder_image.png',
+                        title: nameB,
+                        imagePath: imageB,
                         votes: votesB,
                         isSelected: _selectedOptionKey == 'optionB',
                         onTap: () => _handleVote('optionB'),
@@ -162,17 +151,12 @@ class _VotingScreenState extends State<VotingScreen> {
                     ],
                   ),
                 ),
-
-                // Counter
+                const Spacer(),
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 40, top: 20),
+                  padding: const EdgeInsets.only(bottom: 40),
                   child: Text(
-                    'Waiting for ${expectedVotes - totalVotes} votes...',
-                    style: const TextStyle(
-                      color: Color(0xFFB785F4),
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    'Waiting for ${max(0, expectedVotes - totalVotes)} votes...',
+                    style: const TextStyle(color: Color(0xFFB785F4), fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -184,7 +168,6 @@ class _VotingScreenState extends State<VotingScreen> {
   }
 }
 
-// VoteOptionCard is now a StatelessWidget
 class VoteOptionCard extends StatelessWidget {
   final String title;
   final String imagePath;
@@ -192,74 +175,37 @@ class VoteOptionCard extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const VoteOptionCard({
-    super.key,
-    required this.title,
-    required this.imagePath,
-    required this.votes,
-    required this.isSelected,
-    required this.onTap,
-  });
+  const VoteOptionCard({super.key, required this.title, required this.imagePath, required this.votes, required this.isSelected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    Widget buildImage() {
+      if (imagePath.isEmpty) return const Icon(Icons.person, size: 50, color: Colors.white);
+      if (imagePath.startsWith('assets/')) return Image.asset(imagePath);
+      return Image.file(File(imagePath), errorBuilder: (_,__,___) => const Icon(Icons.error));
+    }
+
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
           height: 300,
           decoration: BoxDecoration(
-            color: isSelected
-                ? AppColors.purple1 // Lighter color when selected
-                : AppColors.purple3, // Standard color
+            color: isSelected ? AppColors.purple1 : AppColors.purple3,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected ? Colors.white : Colors.transparent,
-              width: 2,
-            ),
+            border: Border.all(color: isSelected ? Colors.white : Colors.transparent, width: 2),
           ),
           margin: const EdgeInsets.all(8),
           child: Column(
             children: [
               Container(
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.purple3 : AppColors.purple4,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
-                ),
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                padding: const EdgeInsets.all(8),
+                child: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
               ),
-              Expanded(
-                child: Center(
-                  child: Image.asset(imagePath),
-                ),
-              ),
+              Expanded(child: Padding(padding: const EdgeInsets.all(8.0), child: buildImage())),
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.purple3 : AppColors.purple4,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
-                  ),
-                ),
-                child: Text(
-                  'Votes: $votes',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white),
-                ),
+                padding: const EdgeInsets.all(8),
+                child: Text('Votes: $votes', style: const TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -275,6 +221,7 @@ class ResultScreen extends StatefulWidget {
   final String gameId;
   final bool isHost;
   final String tieOption;
+  final Map<String, dynamic>? matchData;
 
   const ResultScreen({
     super.key,
@@ -282,7 +229,8 @@ class ResultScreen extends StatefulWidget {
     required this.votesB,
     required this.gameId,
     required this.isHost,
-    required this.tieOption
+    required this.tieOption,
+    this.matchData,
   });
 
   @override
@@ -293,33 +241,83 @@ class _ResultScreenState extends State<ResultScreen> {
   DocumentReference<Map<String, dynamic>> get docRef =>
       FirebaseFirestore.instance.collection("tournaments").doc(widget.gameId);
 
-  // This method will be called by the host to signal returning to the tournament
-  Future<void> _endVoting() async {
-    await docRef.update({'isVotingStarted': false});
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => TournamentScreen(
-            tournamentId: widget.gameId,
-            isHost: widget.isHost,
-          ),
-        ),
-      );
+  bool _isUpdating = false;
+
+  Future<void> _processMatchResult() async {
+    if (_isUpdating) return;
+    setState(() => _isUpdating = true);
+
+    try {
+      final bool optionAWins = widget.votesA > widget.votesB;
+      final bool isTie = widget.votesA == widget.votesB;
+
+      Map<String, dynamic> winnerData;
+      if (isTie) {
+        winnerData = (widget.tieOption == 'optionA')
+            ? widget.matchData!['player1']
+            : widget.matchData!['player2'];
+      } else {
+        winnerData = optionAWins
+            ? widget.matchData!['player1']
+            : widget.matchData!['player2'];
+      }
+
+      final Directory tempDir = await getTemporaryDirectory();
+      final File jsonFile = File(p.join(tempDir.path, 'bracket.json'));
+
+      if (!await jsonFile.exists()) {
+        throw Exception("Bracket file not found");
+      }
+
+      final String jsonString = await jsonFile.readAsString();
+      Map<String, dynamic> bracket = jsonDecode(jsonString);
+
+      final String nextRound = widget.matchData!['nextRound'];
+      final int nextIndex = widget.matchData!['nextRoundIndex'];
+
+      if (bracket.containsKey(nextRound)) {
+        List<dynamic> nextRoundList = bracket[nextRound];
+        if (nextIndex < nextRoundList.length) {
+          nextRoundList[nextIndex] = winnerData;
+        }
+        bracket[nextRound] = nextRoundList;
+      }
+
+      final String updatedJsonString = jsonEncode(bracket);
+      await jsonFile.writeAsString(updatedJsonString);
+
+      await docRef.update({
+        'bracketData': updatedJsonString,
+        'isVotingStarted': false,
+      });
+
+    } catch (e) {
+      print("Error updating bracket: $e");
+      setState(() => _isUpdating = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // For non-hosts, we listen for the host's signal to go back
-    if (!widget.isHost) {
-      return StreamBuilder<DocumentSnapshot>(
+    String winnerName = "???";
+    if (widget.matchData != null) {
+      if (widget.votesA > widget.votesB) {
+        winnerName = widget.matchData!['player1']['name'];
+      } else if (widget.votesB > widget.votesA) {
+        winnerName = widget.matchData!['player2']['name'];
+      } else {
+        winnerName = (widget.tieOption == 'optionA')
+            ? widget.matchData!['player1']['name']
+            : widget.matchData!['player2']['name'];
+      }
+    }
+
+    return StreamBuilder<DocumentSnapshot>(
         stream: docRef.snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>;
             if (data['isVotingStarted'] == false) {
-              // When the flag is false, navigate back to the tournament screen
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
                   Navigator.pushReplacement(
@@ -333,69 +331,56 @@ class _ResultScreenState extends State<ResultScreen> {
                   );
                 }
               });
-              return const Center(child: CircularProgressIndicator());
+              return const Scaffold(
+                  backgroundColor: AppColors.purple5,
+                  body: Center(child: CircularProgressIndicator()));
             }
           }
-          // While waiting for the host, show the results
-          return _buildResultsView();
-        },
-      );
-    }
 
-    // For the host, we show the results and the button to go back
-    return _buildResultsView();
-  }
-
-  // Helper widget to build the result view UI to avoid repetition
-  Widget _buildResultsView() {
-    String getWinnerText() {
-      if (widget.votesA > widget.votesB) return 'Option A wins!';
-      if (widget.votesB > widget.votesA) return 'Option B wins!';
-      return widget.tieOption + " wins!";
-    }
-
-    final winner = getWinnerText();
-
-    return Scaffold(
-      backgroundColor: AppColors.purple5,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              winner,
-              style: const TextStyle(
-                fontSize: 32,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+          return Scaffold(
+            backgroundColor: AppColors.purple5,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Winner:", style: TextStyle(color: Colors.white70, fontSize: 20)),
+                  const SizedBox(height: 10),
+                  Text(
+                    winnerName,
+                    style: const TextStyle(
+                      fontSize: 32,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  Text(
+                    '${widget.votesA}   vs   ${widget.votesB}',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      color: Color(0xFFD2A2FF),
+                    ),
+                  ),
+                  const SizedBox(height: 50),
+                  if (widget.isHost)
+                    _isUpdating
+                        ? const CircularProgressIndicator()
+                        : ElevatedButton(
+                      onPressed: _processMatchResult,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.purple1,
+                        padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                      ),
+                      child: const Text(
+                        'Next Match / Back to Bracket',
+                        style: TextStyle(fontSize: 18, color: Colors.white),
+                      ),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: 30),
-            Text(
-              'A: ${widget.votesA}   |   B: ${widget.votesB}',
-              style: const TextStyle(
-                fontSize: 24,
-                color: Color(0xFFD2A2FF),
-              ),
-            ),
-            const SizedBox(height: 50),
-            // This button is only visible to the host
-            if (widget.isHost)
-              ElevatedButton(
-                onPressed: _endVoting,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.purple1,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-                ),
-                child: const Text(
-                  'Back to Tournament',
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
-              ),
-          ],
-        ),
-      ),
+          );
+        }
     );
   }
 }
