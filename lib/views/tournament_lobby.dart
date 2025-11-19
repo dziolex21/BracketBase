@@ -72,13 +72,20 @@ class _TournamentLobbyState extends State<TournamentLobby> {
           ),
         ),
         actions: [
-          TextButton(
+          ElevatedButton(
             onPressed: () {
               if (_nameController.text.trim().isNotEmpty) {
                 Navigator.of(context).pop(_nameController.text.trim());
               }
             },
-            child: const Text('Join', style: TextStyle(color: AppColors.purple1)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.purple2, // Button background color
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Join',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
